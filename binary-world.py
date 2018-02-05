@@ -122,6 +122,7 @@ class BinaryWorld:
         """
         Renders the current world state to an image
         """
+        # TODO see https://matplotlib.org/gallery/lines_bars_and_markers/simple_plot.html
         pass
 
 
