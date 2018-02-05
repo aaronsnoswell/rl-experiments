@@ -35,13 +35,24 @@ class BinaryWorld:
     StateColorRedChar = 'r'
 
 
-    def __init__(self, *, width=32, height=32, window_size_x=3, window_size_y=3):
+    def __init__(self, *, width=32, height=32, feature_window_size_x=3, feature_window_size_y=3, positive_score_count=4, negative_score_count=5):
         """
         Constructor
         """
 
-        assert (window_size_x % 2) == 1, "Window dimensions must be odd"
-        assert (window_size_y % 2) == 1, "Window dimensions must be odd"
+        assert (feature_window_size_x % 2) == 1, "Feature window dimensions must be odd"
+        assert (feature_window_size_y % 2) == 1, "Feature window dimensions must be odd"
+
+        assert positive_score_count != negative_score_count, \
+            "Positive score count ({}) cannot be equal to negative score count".format(positive_score_count)
+
+        # Copy parameters locally
+        self.width = width
+        self.height = height
+        self.feature_window_size_x = feature_window_size_x
+        self.feature_window_size_y = feature_window_size_y
+        self.positive_score_count = positive_score_count
+        self.negative_score_count = negative_score_count
         
         # Initialize a randomized state grid
         self.state_grid = np.random.randint(
@@ -51,8 +62,8 @@ class BinaryWorld:
         )
 
         # Figure out the actual padding size
-        pad_x = window_size_x // 2
-        pad_y = window_size_y // 2
+        pad_x = self.feature_window_size_x // 2
+        pad_y = self.feature_window_size_y // 2
 
         # Pad the state grid so we can do feature lookups easily
         self.state_grid_padded = np.pad(
@@ -62,9 +73,15 @@ class BinaryWorld:
             constant_values=-1
         )
 
-        # Initialise and populate the feature vector grid
-        self.feature_vectors = np.empty(
-            shape=(height, width, window_size_x * window_size_y),
+        # Initialize value matrix
+        self.value_grid = np.empty(
+            shape=(height, width),
+            dtype=int
+        )
+
+        # Initialise feature vector grid
+        self.feature_grid = np.empty(
+            shape=(height, width, self.feature_window_size_x * self.feature_window_size_y),
             dtype=int
         )
 
@@ -72,7 +89,8 @@ class BinaryWorld:
         for y in range(height):
             for x in range(width):
 
-                # For each point, loop over the feature window
+                # For each point, loop over the feature window to compute
+                # the feature vector
                 feature_index = 0
                 for yi in range(-pad_y, pad_y+1):
                     y_index = pad_y + y + yi
@@ -80,10 +98,12 @@ class BinaryWorld:
                     for xi in range(-pad_x, pad_x+1):
                         x_index = pad_x + x + xi
 
-                        # Compute and store the feature vector
-                        self.feature_vectors[y][x][feature_index] = self.state_grid_padded[y_index][x_index]
+                        self.feature_grid[y][x][feature_index] = self.state_grid_padded[y_index][x_index]
 
                         feature_index += 1
+
+                # Then compute and store the value
+                self.value_grid[y][x] = self.get_reward_from_feature_vector(self.feature_grid[y][x])
 
 
     def _human_friendly_array_string(self, object_in):
@@ -100,24 +120,21 @@ class BinaryWorld:
         Get human-friendly string version of class
         """
         with show_complete_array():
-            return self._human_friendly_array_string(
-                "BinaryWorld(\n{}\n)".format(
-                    "  " + str(self.state_grid).replace("\n", "\n  ")
-                )
+            return "BinaryWorld(\n  S = {},\n  V = {}\n)".format(
+                str(self._human_friendly_array_string(self.state_grid)).replace("\n", "\n      "),
+                str(self.value_grid).replace("\n", "\n      ")
             )
 
 
-    def get_reward_from_feature_vector(self, f, *, positive_score_count=4, negative_score_count=5):
+    def get_reward_from_feature_vector(self, f):
         """
-        Returns the ground truth reward for a given feature vector
+        Utility function to return the ground truth reward for a given feature vector
         """
-
-        assert positive_score_count != negative_score_count, "Positive score count ({}) cannot be equal to negative score count".format(positive_score_count)
 
         num_blue_neighbours = np.sum(np.equal(f, BinaryWorld.StateColorBlueInt))
-        if num_blue_neighbours == positive_score_count:
+        if num_blue_neighbours == self.positive_score_count:
             return +1
-        elif num_blue_neighbours == negative_score_count:
+        elif num_blue_neighbours == self.negative_score_count:
             return -1
         else:
             return 0
@@ -126,10 +143,18 @@ class BinaryWorld:
     def get_feature_vector(self, x, y):
         """
         Gets the feature vector for a state (x, y)
-        A value of -1 indicates neighbouring states sampled outside the world grid
+        A feature vector value of -1 indicates neighbouring states sampled outside the world grid
         """
 
-        return self.feature_vectors[y][x]
+        return self.feature_grid[y][x]
+
+
+    def get_value(self, x, y):
+        """
+        Gets the value of a state (x, y)
+        """
+
+        return self.value_grid[y][x]
 
 
     def display(self):
@@ -147,9 +172,6 @@ def test_binaryworld():
 
     a = BinaryWorld(width=10, height=10)
     print(a)
-    f = a.get_feature_vector(3, 3)
-    print(a._human_friendly_array_string(f))
-    print(a.get_reward_from_feature_vector(f))
 
 
 if __name__ == "__main__":
