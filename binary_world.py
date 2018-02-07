@@ -50,6 +50,7 @@ class BinaryWorld:
             positive_score_count=4,
             negative_score_count=5,
             state_grid=None,
+            random_seed=1337
             ):
         """
         Constructor
@@ -68,6 +69,7 @@ class BinaryWorld:
         self.feature_window_size_y = feature_window_size_y
         self.positive_score_count = positive_score_count
         self.negative_score_count = negative_score_count
+        self.random_seed = random_seed
 
         if state_grid is not None:
             # Use the passed state grid
@@ -78,11 +80,12 @@ class BinaryWorld:
             print("Using supplied state grid")
             print("Width and height values (if given) will be ignored")
 
-            self.height, self.width = state_grid.shape()
+            self.height, self.width = state_grid.shape
             self.state_grid = state_grid
 
         else:
             # Initialize a randomized state grid
+            np.random.seed(random_seed)
             self.state_grid = np.random.randint(
                 BinaryWorld.StateColorBlueInt,
                 high=BinaryWorld.StateColorRedInt + 1,
@@ -262,9 +265,27 @@ def test_binaryworld():
     Tests the BinaryWorld class
     """
 
-    a = BinaryWorld(width=13, height=13)
-    print(a)
-    a.display()
+    import pickle
+
+    # Create a new random BinaryWorld
+    bw = BinaryWorld(width=13, height=13)
+    print(bw)
+
+    # Test saving and loading to/from pickles
+    filename = "sample_binaryworld.pickle"
+    with open(filename, "wb") as file:          
+        print("Saving to {}".format(filename))
+        pickle.dump(bw, file)
+        print("Done")
+
+    with open(filename, "rb") as file:          
+        print("Loading from {}".format(filename))
+        bw_loaded = pickle.load(file)
+        assert (not np.any(bw_loaded.state_grid != bw.state_grid)), "Loaded state grid did not match saved"
+        print("Done")
+
+    # Test display functionality
+    bw.display()
 
 
 if __name__ == "__main__":
