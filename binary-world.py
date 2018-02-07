@@ -6,6 +6,7 @@ Maximum Entropy Deep Inverse Reinforcement Learning. (2015).
 
 
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 from contextlib import contextmanager
 
@@ -34,8 +35,22 @@ class BinaryWorld:
     StateColorRedInt = 1
     StateColorRedChar = 'r'
 
+    # Minimum and maximum value a state can have
+    MinValue = -1
+    MaxValue = 1
 
-    def __init__(self, *, width=32, height=32, feature_window_size_x=3, feature_window_size_y=3, positive_score_count=4, negative_score_count=5):
+
+    def __init__(
+            self,
+            *,
+            width=32,
+            height=32,
+            feature_window_size_x=3,
+            feature_window_size_y=3,
+            positive_score_count=4,
+            negative_score_count=5,
+            state_grid=None,
+            ):
         """
         Constructor
         """
@@ -53,13 +68,35 @@ class BinaryWorld:
         self.feature_window_size_y = feature_window_size_y
         self.positive_score_count = positive_score_count
         self.negative_score_count = negative_score_count
-        
-        # Initialize a randomized state grid
-        self.state_grid = np.random.randint(
-            BinaryWorld.StateColorBlueInt,
-            high=BinaryWorld.StateColorRedInt + 1,
-            size=[height, width]
-        )
+
+        if state_grid is not None:
+            # Use the passed state grid
+
+            assert len(state_grid.shape) == 2, \
+                "State Grid must be a two-dimensional ndarray"
+
+            print("Using supplied state grid")
+            print("Width and height values (if given) will be ignored")
+
+            self.height, self.width = state_grid.shape()
+            self.state_grid = state_grid
+
+        else:
+            # Initialize a randomized state grid
+            self.state_grid = np.random.randint(
+                BinaryWorld.StateColorBlueInt,
+                high=BinaryWorld.StateColorRedInt + 1,
+                size=[self.height, self.width]
+            )
+
+        # Initialize the features and values
+        self._initialize_features_and_values()
+
+
+    def _initialize_features_and_values(self):
+        """
+        Internal function - initializes the feature and value grids
+        """
 
         # Figure out the actual padding size
         pad_x = self.feature_window_size_x // 2
@@ -75,19 +112,19 @@ class BinaryWorld:
 
         # Initialize value matrix
         self.value_grid = np.empty(
-            shape=(height, width),
+            shape=(self.height, self.width),
             dtype=int
         )
 
         # Initialise feature vector grid
         self.feature_grid = np.empty(
-            shape=(height, width, self.feature_window_size_x * self.feature_window_size_y),
+            shape=(self.height, self.width, self.feature_window_size_x * self.feature_window_size_y),
             dtype=int
         )
 
         # Loop over every point in the state grid
-        for y in range(height):
-            for x in range(width):
+        for y in range(self.height):
+            for x in range(self.width):
 
                 # For each point, loop over the feature window to compute
                 # the feature vector
@@ -161,8 +198,63 @@ class BinaryWorld:
         """
         Renders the current world state to an image
         """
-        # TODO see https://matplotlib.org/gallery/lines_bars_and_markers/simple_plot.html
-        pass
+
+        line_width = 3
+        point_radius = 0.325
+
+        fig = plt.figure()
+        ax = plt.gca()
+
+        # Plot values
+        remap_range = lambda v: float(v - BinaryWorld.MinValue) / (BinaryWorld.MaxValue - BinaryWorld.MinValue)
+        value_colors=np.array([
+            [remap_range(a), remap_range(a), remap_range(a)] for a in np.ravel(
+                np.flip(self.value_grid, 0)
+            )
+        ])
+        value_points = np.column_stack(
+            np.where(
+                np.flip(self.value_grid, 0) != np.nan
+            )
+        )
+        for i in range(len(value_points)):
+            pt = value_points[i]
+            c = value_colors[i]
+            ax.add_artist(
+                plt.Rectangle(
+                    (pt[1], pt[0]),
+                    width=1,
+                    height=1,
+                    color=c)
+                )
+        
+        # Plot blue states
+        for pt in np.column_stack(np.where(np.flip(self.state_grid, 0) == BinaryWorld.StateColorBlueInt)):
+            ax.add_artist(
+                plt.Circle(
+                    (pt[1] + 0.5, pt[0] + 0.5),
+                    radius=point_radius,
+                    color='blue')
+                )
+
+        # Plot red states
+        for pt in np.column_stack(np.where(np.flip(self.state_grid, 0) == BinaryWorld.StateColorRedInt)):
+            ax.add_artist(
+                plt.Circle(
+                    (pt[1] + 0.5, pt[0] + 0.5),
+                    radius=point_radius,
+                    color='red')
+                )
+
+        ax.set_aspect("equal", adjustable="box")
+        plt.xlim([0, self.width])
+        plt.ylim([0, self.height])
+
+        #[i.set_linewidth(line_width) for i in ax.spines.values()]
+        #plt.grid(True, color="black", linewidth=line_width)
+        ax.tick_params(length=0, labelbottom="off", labelleft="off") 
+
+        plt.show()
 
 
 def test_binaryworld():
@@ -170,8 +262,9 @@ def test_binaryworld():
     Tests the BinaryWorld class
     """
 
-    a = BinaryWorld(width=10, height=10)
+    a = BinaryWorld(width=13, height=13)
     print(a)
+    a.display()
 
 
 if __name__ == "__main__":
