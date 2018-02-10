@@ -285,7 +285,7 @@ class ObjectWorld:
         return tableau20
 
 
-    def _generate_figure(self, *, show_inner_colors=True):
+    def _generate_figure(self, *, show_inner_colors=True, color_array=None):
         """
         Internal method - generates a figure for display or saving
         """
@@ -321,7 +321,9 @@ class ObjectWorld:
         
 
         # Plot objects
-        color_list = self._get_color_list()
+        color_list = color_array
+        if color_list is None:
+            color_list = self._get_color_list()
         for yi in range(self.size):
             for xi in range(self.size):
                 state = np.flip(self.state_grid, 0)[yi][xi]
@@ -356,19 +358,19 @@ class ObjectWorld:
         return fig
 
 
-    def display_figure(self, *, show_inner_colors=True):
+    def display_figure(self, *, show_inner_colors=True, color_array=None):
         """
         Renders the current world state to an image
         """
-        fig = self._generate_figure(show_inner_colors=show_inner_colors)
+        fig = self._generate_figure(show_inner_colors=show_inner_colors, color_array=color_array)
         plt.show()
 
 
-    def save_figure(self, filename, *, show_inner_colors=True, dpi=None):
+    def save_figure(self, filename, *, show_inner_colors=True, color_array=None, dpi=None):
         """
         Renders the current world state to an image
         """
-        fig = self._generate_figure(show_inner_colors=show_inner_colors)
+        fig = self._generate_figure(show_inner_colors=show_inner_colors, color_array=color_array)
         fig.savefig(
             filename,
             dpi=dpi,
