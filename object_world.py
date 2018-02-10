@@ -23,14 +23,17 @@ class ObjectWorld:
     OuterColorIndex = 0
     InnerColorIndex = 1
 
+    # Indices if the first and second colors
+    # (used for determining the reward, hence they are special)
     Color1Index = 0
     Color2Index = 1
     
+    # If a state has no object, it's colors will be set to this value
     NoObjectColorValue = -1
 
-    # Minimum and maximum value a state can have
-    MinValue = -1
-    MaxValue = 1
+    # Minimum and maximum reward a state can have
+    MinReward = -1
+    MaxReward = 1
 
 
     def __init__(
@@ -68,10 +71,10 @@ class ObjectWorld:
                 "State Grid dimensions 0 and 1 must be equal"
 
             assert (state_grid.shape[2] == 2), \
-                "3rd dimension of state grid must be of size 2 (outer, inner color values)"
+                "3rd dimension of state grid must be of size 2 (i.e. outer and inner color)"
 
             print("Using supplied state grid")
-            print("Size value (if given) will be ignored")
+            print("Size (if given) will be ignored")
 
             self.size = state_grid.shape[0]
             self.state_grid = state_grid
@@ -91,22 +94,22 @@ class ObjectWorld:
             for yi in range(self.size):
                 for xi in range(self.size):
                     ii = np.random.choice(len(options))
-                    outer_value = options[ii]
+                    outer_color = options[ii]
 
-                    inner_value = -1
-                    if outer_value != -1:
-                        inner_value = np.random.choice(num_colors)
+                    inner_color = self.NoObjectColorValue
+                    if outer_color != self.NoObjectColorValue:
+                        inner_color = np.random.choice(num_colors)
 
-                    self.state_grid[yi][xi][self.OuterColorIndex] = outer_value
-                    self.state_grid[yi][xi][self.InnerColorIndex] = inner_value
+                    self.state_grid[yi][xi][self.OuterColorIndex] = outer_color
+                    self.state_grid[yi][xi][self.InnerColorIndex] = inner_color
 
-        # Initialize the features and values
-        self._initialize_features_and_values()
+        # Initialize the features and rewards
+        self._initialize_features_and_rewards()
 
 
-    def _initialize_features_and_values(self):
+    def _initialize_features_and_rewards(self):
         """
-        Internal function - initializes the feature and value grids
+        Internal function - initializes the feature and reward grids
         """
 
         # Cts. feature representation dimensions are as follows:
@@ -123,8 +126,8 @@ class ObjectWorld:
             dtype=bool
         )
 
-        # Initialise the value grid
-        self.value_grid = np.empty(
+        # Initialise the reward grid
+        self.reward_grid = np.empty(
             shape=(self.size, self.size),
             dtype=int
         )
@@ -168,7 +171,7 @@ class ObjectWorld:
                         self._df[yi, xi, self.InnerColorIndex, cii, n-1] = _cf < n
                 # End Compute Features
 
-        # Compute values
+        # Compute rewards
         positive = []
         negative = []
 
@@ -194,11 +197,11 @@ class ObjectWorld:
         for yi in range(self.size):
             for xi in range(self.size):
                 if positive[yi, xi]:
-                    self.value_grid[yi, xi] = 1
+                    self.reward_grid[yi, xi] = 1
                 elif negative[yi, xi]:
-                    self.value_grid[yi, xi] = -1
+                    self.reward_grid[yi, xi] = -1
                 else:
-                    self.value_grid[yi, xi] = 0
+                    self.reward_grid[yi, xi] = 0
 
 
     def __str__(self):
@@ -208,7 +211,7 @@ class ObjectWorld:
         with show_complete_array():
             return "ObjectWorld(\n  S = {},\n  V = {}\n)".format(
                 str(self.state_grid).replace("\n", "\n      "),
-                str(self.value_grid).replace("\n", "\n      ")
+                str(self.reward_grid).replace("\n", "\n      ")
             )
 
 
@@ -216,7 +219,7 @@ class ObjectWorld:
         """
         Utility function to return the ground truth reward for a given feature vector
 
-        Value is determined as follows:
+        State reward is determined as follows:
         The reward is positive for cells which are both within the
         distance 3 of outer color 1 and distance 2 of outer color 2,
         negative if only within distance 3 of outer color 1 and zero
@@ -256,11 +259,11 @@ class ObjectWorld:
             return self._df[y, x]
 
 
-    def get_value(self, x, y):
+    def get_reward(self, x, y):
         """
-        Gets the value of a state (x, y)
+        Gets the reward of a state (x, y)
         """
-        return self.value_grid[y, x]
+        return self.reward_grid[y, x]
 
 
     def _get_color_list(self):
@@ -293,21 +296,21 @@ class ObjectWorld:
         fig = plt.figure()
         ax = plt.gca()
 
-        # Plot values
-        remap_range = lambda v: float(v - ObjectWorld.MinValue) / (ObjectWorld.MaxValue - ObjectWorld.MinValue)
-        value_colors=np.array([
+        # Plot rewards
+        remap_range = lambda r: float(r - ObjectWorld.MinReward) / (ObjectWorld.MaxReward - ObjectWorld.MinReward)
+        reward_colors=np.array([
             [remap_range(a), remap_range(a), remap_range(a)] for a in np.ravel(
-                np.flip(self.value_grid, 0)
+                np.flip(self.reward_grid, 0)
             )
         ])
-        value_points = np.column_stack(
+        reward_points = np.column_stack(
             np.where(
-                np.flip(self.value_grid, 0) != np.nan
+                np.flip(self.reward_grid, 0) != np.nan
             )
         )
-        for i in range(len(value_points)):
-            pt = value_points[i]
-            c = value_colors[i]
+        for i in range(len(reward_points)):
+            pt = reward_points[i]
+            c = reward_colors[i]
             ax.add_artist(
                 plt.Rectangle(
                     (pt[1], pt[0]),
@@ -384,7 +387,7 @@ def test_objectworld():
     import pickle
 
     # Create a new random ObjectWorld
-    ow = ObjectWorld(size=13, num_colors=7)  
+    ow = ObjectWorld(size=13)  
     print(ow)
 
     # Test saving and loading to/from pickles

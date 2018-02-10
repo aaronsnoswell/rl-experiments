@@ -23,9 +23,9 @@ class BinaryWorld:
     StateColorRedInt = 1
     StateColorRedChar = 'r'
 
-    # Minimum and maximum value a state can have
-    MinValue = -1
-    MaxValue = 1
+    # Minimum and maximum reward a state can have
+    MinReward = -1
+    MaxReward = 1
 
 
     def __init__(
@@ -64,7 +64,7 @@ class BinaryWorld:
                 "State Grid must be square"
 
             print("Using supplied state grid")
-            print("Size value (if given) will be ignored")
+            print("Size (if given) will be ignored")
 
             self.size = state_grid.shape[0]
             self.state_grid = state_grid
@@ -78,13 +78,13 @@ class BinaryWorld:
                 size=[self.size, self.size]
             )
 
-        # Initialize the features and values
-        self._initialize_features_and_values()
+        # Initialize the features and rewards
+        self._initialize_features_and_rewards()
 
 
-    def _initialize_features_and_values(self):
+    def _initialize_features_and_rewards(self):
         """
-        Internal function - initializes the feature and value grids
+        Internal function - initializes the feature and reward grids
         """
 
         # Figure out the actual padding size
@@ -98,8 +98,8 @@ class BinaryWorld:
             constant_values=-1
         )
 
-        # Initialize value matrix
-        self.value_grid = np.empty(
+        # Initialize reward matrix
+        self.reward_grid = np.empty(
             shape=(self.size, self.size),
             dtype=int
         )
@@ -127,8 +127,8 @@ class BinaryWorld:
 
                         feature_index += 1
 
-                # Then compute and store the value
-                self.value_grid[y][x] = self.get_reward_from_feature_vector(self.feature_grid[y][x])
+                # Then compute and store the reward
+                self.reward_grid[y][x] = self.get_reward_from_feature_vector(self.feature_grid[y][x])
 
 
     def _human_friendly_array_string(self, object_in):
@@ -147,7 +147,7 @@ class BinaryWorld:
         with show_complete_array():
             return "BinaryWorld(\n  S = {},\n  V = {}\n)".format(
                 str(self._human_friendly_array_string(self.state_grid)).replace("\n", "\n      "),
-                str(self.value_grid).replace("\n", "\n      ")
+                str(self.reward_grid).replace("\n", "\n      ")
             )
 
 
@@ -174,12 +174,12 @@ class BinaryWorld:
         return self.feature_grid[y][x]
 
 
-    def get_value(self, x, y):
+    def get_reward(self, x, y):
         """
-        Gets the value of a state (x, y)
+        Gets the reward of a state (x, y)
         """
 
-        return self.value_grid[y][x]
+        return self.reward_grid[y][x]
 
 
     def _generate_figure(self):
@@ -193,21 +193,21 @@ class BinaryWorld:
         fig = plt.figure()
         ax = plt.gca()
 
-        # Plot values
-        remap_range = lambda v: float(v - BinaryWorld.MinValue) / (BinaryWorld.MaxValue - BinaryWorld.MinValue)
-        value_colors=np.array([
+        # Plot rewards
+        remap_range = lambda r: float(r - BinaryWorld.MinReward) / (BinaryWorld.MaxReward - BinaryWorld.MinReward)
+        reward_colors=np.array([
             [remap_range(a), remap_range(a), remap_range(a)] for a in np.ravel(
-                np.flip(self.value_grid, 0)
+                np.flip(self.reward_grid, 0)
             )
         ])
-        value_points = np.column_stack(
+        reward_points = np.column_stack(
             np.where(
-                np.flip(self.value_grid, 0) != np.nan
+                np.flip(self.reward_grid, 0) != np.nan
             )
         )
-        for i in range(len(value_points)):
-            pt = value_points[i]
-            c = value_colors[i]
+        for i in range(len(reward_points)):
+            pt = reward_points[i]
+            c = reward_colors[i]
             ax.add_artist(
                 plt.Rectangle(
                     (pt[1], pt[0]),
