@@ -4,22 +4,10 @@ benchmark introduced in Wulfmeier, M., Ondruska, P. & Posner, I.
 Maximum Entropy Deep Inverse Reinforcement Learning. (2015).
 """
 
-
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from contextlib import contextmanager
-
-@contextmanager
-def show_complete_array():
-    """
-    Shows a complete numpy array
-    From https://stackoverflow.com/a/45831462/885287
-    """
-    oldoptions = np.get_printoptions()
-    np.set_printoptions(threshold=np.inf)
-    yield
-    np.set_printoptions(**oldoptions)
+from numpy_helpers import show_complete_array
 
 
 class BinaryWorld:
@@ -43,10 +31,8 @@ class BinaryWorld:
     def __init__(
             self,
             *,
-            width=32,
-            height=32,
-            feature_window_size_x=3,
-            feature_window_size_y=3,
+            size=32,
+            feature_window_size=3,
             positive_score_count=4,
             negative_score_count=5,
             state_grid=None,
@@ -56,17 +42,14 @@ class BinaryWorld:
         Constructor
         """
 
-        assert (feature_window_size_x % 2) == 1, "Feature window dimensions must be odd"
-        assert (feature_window_size_y % 2) == 1, "Feature window dimensions must be odd"
+        assert (feature_window_size % 2) == 1, "Feature window size must be odd"
 
         assert positive_score_count != negative_score_count, \
             "Positive score count ({}) cannot be equal to negative score count".format(positive_score_count)
 
         # Copy parameters locally
-        self.width = width
-        self.height = height
-        self.feature_window_size_x = feature_window_size_x
-        self.feature_window_size_y = feature_window_size_y
+        self.size = size
+        self.feature_window_size = feature_window_size
         self.positive_score_count = positive_score_count
         self.negative_score_count = negative_score_count
         self.random_seed = random_seed
@@ -77,10 +60,13 @@ class BinaryWorld:
             assert len(state_grid.shape) == 2, \
                 "State Grid must be a two-dimensional ndarray"
 
-            print("Using supplied state grid")
-            print("Width and height values (if given) will be ignored")
+            assert (state_grid.shape[0] == state_grid.shape[1]), \
+                "State Grid must be square"
 
-            self.height, self.width = state_grid.shape
+            print("Using supplied state grid")
+            print("Size value (if given) will be ignored")
+
+            self.size = state_grid.shape[0]
             self.state_grid = state_grid
 
         else:
@@ -89,7 +75,7 @@ class BinaryWorld:
             self.state_grid = np.random.randint(
                 BinaryWorld.StateColorBlueInt,
                 high=BinaryWorld.StateColorRedInt + 1,
-                size=[self.height, self.width]
+                size=[self.size, self.size]
             )
 
         # Initialize the features and values
@@ -102,41 +88,40 @@ class BinaryWorld:
         """
 
         # Figure out the actual padding size
-        pad_x = self.feature_window_size_x // 2
-        pad_y = self.feature_window_size_y // 2
+        pad_size = self.feature_window_size // 2
 
         # Pad the state grid so we can do feature lookups easily
         self.state_grid_padded = np.pad(
             self.state_grid,
-            (pad_x, pad_y),
+            (pad_size, pad_size),
             'constant',
             constant_values=-1
         )
 
         # Initialize value matrix
         self.value_grid = np.empty(
-            shape=(self.height, self.width),
+            shape=(self.size, self.size),
             dtype=int
         )
 
         # Initialise feature vector grid
         self.feature_grid = np.empty(
-            shape=(self.height, self.width, self.feature_window_size_x * self.feature_window_size_y),
+            shape=(self.size, self.size, self.feature_window_size ** 2),
             dtype=int
         )
 
         # Loop over every point in the state grid
-        for y in range(self.height):
-            for x in range(self.width):
+        for y in range(self.size):
+            for x in range(self.size):
 
                 # For each point, loop over the feature window to compute
                 # the feature vector
                 feature_index = 0
-                for yi in range(-pad_y, pad_y+1):
-                    y_index = pad_y + y + yi
+                for yi in range(-pad_size, pad_size+1):
+                    y_index = pad_size + y + yi
 
-                    for xi in range(-pad_x, pad_x+1):
-                        x_index = pad_x + x + xi
+                    for xi in range(-pad_size, pad_size+1):
+                        x_index = pad_size + x + xi
 
                         self.feature_grid[y][x][feature_index] = self.state_grid_padded[y_index][x_index]
 
@@ -197,9 +182,9 @@ class BinaryWorld:
         return self.value_grid[y][x]
 
 
-    def display(self):
+    def _generate_figure(self):
         """
-        Renders the current world state to an image
+        Internal method - generates a figure for display or saving
         """
 
         line_width = 3
@@ -250,14 +235,38 @@ class BinaryWorld:
                 )
 
         ax.set_aspect("equal", adjustable="box")
-        plt.xlim([0, self.width])
-        plt.ylim([0, self.height])
+        plt.xlim([0, self.size])
+        plt.ylim([0, self.size])
 
         #[i.set_linewidth(line_width) for i in ax.spines.values()]
         #plt.grid(True, color="black", linewidth=line_width)
-        ax.tick_params(length=0, labelbottom="off", labelleft="off") 
+        ax.tick_params(length=0, labelbottom="off", labelleft="off")
 
+        # Figure is now ready for display or saving
+        return fig
+
+
+    def display_figure(self):
+        """
+        Renders the current world state to an image
+        """
+        fig = self._generate_figure()
         plt.show()
+
+
+    def save_figure(self, filename, *, dpi=None):
+        """
+        Renders the current world state to an image
+        """
+        fig = self._generate_figure()
+        fig.savefig(
+            filename,
+            dpi=dpi,
+            transparent=True,
+            bbox_inches='tight',
+            pad_inches=0
+        )
+        plt.close()
 
 
 def test_binaryworld():
@@ -268,7 +277,7 @@ def test_binaryworld():
     import pickle
 
     # Create a new random BinaryWorld
-    bw = BinaryWorld(width=13, height=13)
+    bw = BinaryWorld(size=13)
     print(bw)
 
     # Test saving and loading to/from pickles
@@ -284,8 +293,9 @@ def test_binaryworld():
         assert (not np.any(bw_loaded.state_grid != bw.state_grid)), "Loaded state grid did not match saved"
         print("Done")
 
-    # Test display functionality
-    bw.display()
+    # Test save and display functionality
+    #bw.save_figure("sample_binaryworld.pdf")
+    bw.display_figure()
 
 
 if __name__ == "__main__":
