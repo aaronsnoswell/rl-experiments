@@ -187,8 +187,9 @@ class BinaryWorld:
         Internal method - generates a figure for display or saving
         """
 
-        line_width = 3
+        line_width = 0.75
         point_radius = 0.325
+        line_color = "#efefef"
 
         fig = plt.figure()
         ax = plt.gca()
@@ -233,13 +234,31 @@ class BinaryWorld:
                     radius=point_radius,
                     color='red')
                 )
+        
+        # Draw horizontal grid lines
+        for i in range(self.size - 1):
+            ax.add_artist(plt.Line2D(
+                    (0, self.size),
+                    (i+1, i+1),
+                    color=line_color,
+                    linewidth=line_width
+                )
+            )
+
+        # Draw vetical grid lines
+        for i in range(self.size - 1):
+            ax.add_artist(plt.Line2D(
+                    (i+1, i+1),
+                    (0, self.size),
+                    color=line_color,
+                    linewidth=line_width
+                )
+            )
 
         ax.set_aspect("equal", adjustable="box")
         plt.xlim([0, self.size])
         plt.ylim([0, self.size])
 
-        #[i.set_linewidth(line_width) for i in ax.spines.values()]
-        #plt.grid(True, color="black", linewidth=line_width)
         ax.tick_params(length=0, labelbottom="off", labelleft="off")
 
         # Figure is now ready for display or saving
