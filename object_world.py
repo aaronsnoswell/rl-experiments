@@ -74,10 +74,16 @@ class ObjectWorld:
                 "3rd dimension of state grid must be of size 2 (i.e. outer and inner color)"
 
             print("Using supplied state grid")
-            print("Size (if given) will be ignored")
+            print("size, num_colors and object_likelihood (if given) will be ignored")
 
-            self.size = state_grid.shape[0]
             self.state_grid = state_grid
+
+            # Ensure internal state is consistent
+            self.size = self.state_grid.shape[0]
+            self.num_colors = np.sum(np.unique(self.state_grid) > -1)
+            self.object_likelihood = np.sum(self.state_grid[:, :, 0] > -1) / self.size ** 2
+            self.random_seed = None
+
 
         else:
             # Initialize a randomized state grid
