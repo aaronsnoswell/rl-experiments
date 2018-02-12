@@ -12,7 +12,7 @@ class MarkovRewardProcess(MarkovProcess):
     A Markov Reward Process is a tuple <S, P, R, gamma>
     S: Finite set of states
     P: State transition matrix
-    R: Reward function
+    R: State reward function
     gamma: Discount factor
     """
 
