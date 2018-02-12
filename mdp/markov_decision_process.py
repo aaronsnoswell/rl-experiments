@@ -158,6 +158,7 @@ class MarkovDecisionProcess(MarkovRewardProcess):
 
                 if action not in markov_decision_process_dict[state]:
                     # This action is not available from this state
+                    transition_matrix[i*len(action_set) + a, i] = 1
                     continue
 
                 # Loop over subsequent states
