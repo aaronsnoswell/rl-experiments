@@ -36,7 +36,8 @@ class BinaryWorld:
             positive_score_count=4,
             negative_score_count=5,
             state_grid=None,
-            random_seed=1337
+            random_seed=1337,
+            name=None
             ):
         """
         Constructor
@@ -53,6 +54,7 @@ class BinaryWorld:
         self.positive_score_count = positive_score_count
         self.negative_score_count = negative_score_count
         self.random_seed = random_seed
+        self.name = name
 
         if state_grid is not None:
             # Use the passed state grid
@@ -182,7 +184,7 @@ class BinaryWorld:
         return self.reward_grid[y][x]
 
 
-    def _generate_figure(self):
+    def generate_figure(self):
         """
         Internal method - generates a figure for display or saving
         """
@@ -255,37 +257,40 @@ class BinaryWorld:
                 )
             )
 
+
         ax.set_aspect("equal", adjustable="box")
         plt.xlim([0, self.size])
         plt.ylim([0, self.size])
 
         ax.tick_params(length=0, labelbottom="off", labelleft="off")
 
+        # Add title
+        plt.figtext(
+            0.5125,
+            0.925,
+            "{}BinaryWorld".format(
+                "{} ".format(self.name) if self.name is not None else ""
+            ),
+            fontsize=14,
+            ha='center'
+        )
+
         # Figure is now ready for display or saving
         return fig
 
 
-    def display_figure(self):
+    @staticmethod
+    def save_figure(figure, filename, *, dpi=None):
         """
-        Renders the current world state to an image
+        Renders the given figure to an image
         """
-        fig = self._generate_figure()
-        plt.show()
-
-
-    def save_figure(self, filename, *, dpi=None):
-        """
-        Renders the current world state to an image
-        """
-        fig = self._generate_figure()
-        fig.savefig(
+        figure.savefig(
             filename,
             dpi=dpi,
             transparent=True,
             bbox_inches='tight',
             pad_inches=0
         )
-        plt.close()
 
 
 def test_binaryworld():
@@ -313,8 +318,8 @@ def test_binaryworld():
         print("Done")
 
     # Test save and display functionality
-    #bw.save_figure("sample_binaryworld.pdf")
-    bw.display_figure()
+    fig = bw.generate_figure()
+    plt.show()
 
 
 if __name__ == "__main__":
