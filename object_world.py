@@ -4,294 +4,337 @@ benchmark introduced in Levine, S., Popovic, Z., and Koltun, V.
 Nonlinear inverse reinforcement learning with gaussian processes. (2011).
 """
 
-
 import math
 import numpy as np
-import matplotlib as mpl
 import matplotlib.pyplot as plt
+
+from colormaps import tableau20
 from numpy_helpers import show_complete_array
 
 
-class ObjectWorld:
+class ObjectWorld():
     """
     An implementation of the Object World Inverse Reinforcement Learning
     benchmark introduced in Levine, S., Popovic, Z., and Koltun, V.
     Nonlinear inverse reinforcement learning with gaussian processes. (2011).
     """
 
-    # Helpful constants
-    OuterColorIndex = 0
-    InnerColorIndex = 1
-
-    # Indices if the first and second colors
-    # (used for determining the reward, hence they are special)
-    Color1Index = 0
-    Color2Index = 1
-    
-    # If a state has no object, it's colors will be set to this value
-    NoObjectColorValue = -1
-
     # Minimum and maximum reward a state can have
     MinReward = -1
     MaxReward = 1
 
+    # Distance required to be close to color 0 and color 1
+    Color1Dist = 3
+    Color2Dist = 2
+
+
+    class Color():
+        # Simple color class
+
+        def __init__(self, value):
+            # Constructor
+            self.value = value
+
+        def __str__(self):
+            # Get string repr
+            return "ObjectWorld.Color(value={})".format(
+                self.value
+            )
+
+        def __repr__(self):
+            # Get machine repr
+            return str(self.value)
+
+        def __lt__(self, other):
+            # Less than comparator
+            return self.value < other.value
+
+        def __eq__(self, other):
+            # Equality comparator
+            if isinstance(other, self.__class__):
+                return self.__dict__ == other.__dict__
+            else:
+                return False
+
+
+    class Object():
+        # Simple object class
+
+        def __init__(self, outer_color, inner_color):
+            # Constructor
+            self.outer_color = outer_color
+            self.inner_color = inner_color
+
+        def __str__(self):
+            # Get string repr
+            return "ObjectWorld.Object(outer_color={}, inner_color={})".format(
+                self.outer_color.__repr__(),
+                self.inner_color.__repr__()
+            )
+
+        def __repr__(self):
+            # Get machine repr
+            return "({},{})".format(
+                self.outer_color.__repr__(),
+                self.inner_color.__repr__()
+            )
+
+        def __lt__(self, other):
+            # Less than comparator
+            return self.__repr__() < other.__repr__()
+
+        def __eq__(self, other):
+            # Equality comparator
+            if isinstance(other, self.__class__):
+                return (self.outer_color == other.outer_color) \
+                    and (self.inner_color == other.inner_color)
+            else:
+                return False
+
 
     def __init__(
-            self,
-            *,
-            size=32,
-            num_colors=7,
-            object_likelihood=0.2,
-            use_continuous_features=True,
-            state_grid=None,
-            random_seed=1337
-            ):
+        self,
+        colors,
+        *,
+        size=32,
+        object_likelihood=0.2,
+        use_continuous_features=True,
+        use_manhattan_distance=False,
+        wrap_at_edges=True,
+        state_grid=None,
+        name=None,
+        random_seed=None
+    ):
         """
         Constructor
         """
 
+        assert colors is not None, \
+            "Color array must be provided"
+
         # Copy parameters locally
+        self.colors = colors
         self.size = size
-        self.num_colors = num_colors
         self.object_likelihood = object_likelihood
         self.use_continuous_features = use_continuous_features
+        self.use_manhattan_distance = use_manhattan_distance
+        self.wrap_at_edges = wrap_at_edges
         self.random_seed = random_seed
-
-        supported_colors = len(self._get_color_list())
-        assert (self.num_colors <= supported_colors), \
-            "Currently only supports up to {} colors".format(supported_colors)
+        self.name = name
 
         if state_grid is not None:
-            # Use the passed state grid
 
-            assert len(state_grid.shape) == 3, \
-                "State Grid must be a three-dimensional ndarray"
+            assert len(state_grid.shape) == 2, \
+                "State Grid must be a two-dimensional ndarray"
 
             assert (state_grid.shape[0] == state_grid.shape[1]), \
-                "State Grid dimensions 0 and 1 must be equal"
+                "State Grid must be square"
 
-            assert (state_grid.shape[2] == 2), \
-                "3rd dimension of state grid must be of size 2 (i.e. outer and inner color)"
+            # Check for consistency
+            supplied_colors = np.unique(
+                np.array(
+                    sum(
+                        [[o.inner_color, o.outer_color] for o in state_grid[state_grid != None]],
+                        []
+                    )
+                )
+            )
+            for c in supplied_colors:
+                assert c in self.colors, \
+                    "Color {} was not in supplied color array".format(c)
 
-            print("Using supplied state grid")
-            print("size, num_colors and object_likelihood (if given) will be ignored")
+            # Use the supplied state grid
+            print("Using given state grid")
+            print("Size, object likelihood and random seed values (if given) will be ignored")
 
             self.state_grid = state_grid
 
-            # Ensure internal state is consistent
+            # Ensure consistent internal state
             self.size = self.state_grid.shape[0]
-            self.num_colors = np.sum(np.unique(self.state_grid) > -1)
-            self.object_likelihood = np.sum(self.state_grid[:, :, 0] > -1) / self.size ** 2
+            self.object_likelihood = np.sum(self.state_grid != None) / self.size ** 2
             self.random_seed = None
 
-
         else:
-            # Initialize a randomized state grid
+
+            # Compute a new random ObjectWorld
             np.random.seed(random_seed)
-
-            self.state_grid = np.empty(
-                shape=(self.size, self.size, 2),
-                dtype=int
-            )
-
-            num_non_object_options = round(num_colors / self.object_likelihood - num_colors)
-            options = list(range(num_colors)) + num_non_object_options * [self.NoObjectColorValue]
-
+            self.state_grid = np.array([[None] * self.size for i in range(self.size)])
             for yi in range(self.size):
                 for xi in range(self.size):
-                    ii = np.random.choice(len(options))
-                    outer_color = options[ii]
+                    if np.random.random() < self.object_likelihood:
+                        ob = ObjectWorld.Object(
+                            self.colors[np.random.choice(len(self.colors))],
+                            self.colors[np.random.choice(len(self.colors))]
+                        )
+                        self.state_grid[yi, xi] = ob
 
-                    inner_color = self.NoObjectColorValue
-                    if outer_color != self.NoObjectColorValue:
-                        inner_color = np.random.choice(num_colors)
+        # Initialize feature and reward grids
+        if use_continuous_features:
+            self.feature_grid = np.empty(
+                shape=(self.size, self.size, len(self.colors) * 2),
+                dtype=float
+            )
+        else:
+            self.feature_grid = np.empty(
+                shape=(self.size, self.size, len(self.colors) * 2 * self.size)
+            )
 
-                    self.state_grid[yi][xi][self.OuterColorIndex] = outer_color
-                    self.state_grid[yi][xi][self.InnerColorIndex] = inner_color
-
-        # Initialize the features and rewards
-        self._initialize_features_and_rewards()
-
-
-    def _initialize_features_and_rewards(self):
-        """
-        Internal function - initializes the feature and reward grids
-        """
-
-        # Cts. feature representation dimensions are as follows:
-        # y, x, color position (ourside, then in), color
-        self._cf = np.empty(
-            shape=(self.size, self.size, 2, self.num_colors),
-            dtype=float
-        )
-
-        # Each discrete feature dimension indicates if an object of that
-        # color position of that color is closer than d \member {1, ..., self.size}
-        self._df = np.empty(
-            shape=(self.size, self.size, 2, self.num_colors, self.size),
-            dtype=bool
-        )
-
-        # Initialise the reward grid
         self.reward_grid = np.empty(
             shape=(self.size, self.size),
             dtype=int
         )
 
-        # Compute features
         for yi in range(self.size):
             for xi in range(self.size):
+                f = self.get_feature_for_state(xi, yi)
+                self.feature_grid[yi, xi] = f
+                self.reward_grid[yi, xi] = self.get_reward_from_feature(f)
 
-                # Compute features
-                # For each color
-                for cii in range(self.num_colors):
 
-                    closest_outer_color_dist = math.inf
-                    closest_inner_color_dist = math.inf
-                     
-                    # Loop over the whole grid
-                    for yii in range(self.size):
-                        for xii in range(self.size):
+    def get_feature_for_state(self, x, y):
+        """
+        Compute the feature vector for a given state (x, y)
+        """
 
-                            dist = math.sqrt((yii - yi) ** 2 + (xii - xi) ** 2)
+        # A padding term is used to account for an infinite grid (wraps at edges)
+        padding = 0
+        if self.wrap_at_edges:
+            padding = max(ObjectWorld.Color1Dist, ObjectWorld.Color2Dist)
 
-                            # Checking for the closest object with that outer color...
-                            if self.state_grid[yii, xii, self.OuterColorIndex] == cii:
-                                if dist < closest_outer_color_dist:
-                                    closest_outer_color_dist = dist
+        # There are 2C continuous features - one for the euclidian
+        # distance to the nearest object of outer, and inner color
+        f = np.zeros(shape=len(self.colors) * 2)
 
-                            # And checking for the closest object with that inner color
-                            if self.state_grid[yii, xii, self.InnerColorIndex] == cii:
-                                if dist < closest_inner_color_dist:
-                                    closest_inner_color_dist = dist
+        for c in range(len(self.colors)):
 
-                    # Finally, store the closest inner/outer color distances
-                    self._cf[yi, xi, self.OuterColorIndex, cii] = closest_outer_color_dist
-                    self._cf[yi, xi, self.InnerColorIndex, cii] = closest_inner_color_dist
+            smallest_outer_dist = math.inf
+            smallest_inner_dist = math.inf
 
-                    # And a binary vector indicating distance to the nearest object of that color
-                    # up to a max distance of self.size
-                    for n in range(1, self.size + 1):
-                        _cf = self._cf[yi, xi, self.OuterColorIndex, cii]
-                        self._df[yi, xi, self.OuterColorIndex, cii, n-1] = _cf < n
-                        self._df[yi, xi, self.InnerColorIndex, cii, n-1] = _cf < n
-                # End Compute Features
+            for yi in range(-padding, self.size + padding):
+                for xi in range(-padding, self.size + padding):
 
-        # Compute rewards
-        positive = []
-        negative = []
+                    state = self.state_grid[yi % self.size, xi % self.size]
+                    if state is None: continue
+
+                    dist = math.sqrt((yi-y) ** 2 + (xi-x) ** 2)
+                    if self.use_manhattan_distance:
+                        dist = np.abs(yi - y) + np.abs(xi - x)
+
+                    # Outer color check
+                    if state.outer_color == self.colors[c]:
+                        if dist < smallest_outer_dist:
+                            smallest_outer_dist = dist
+
+                    # Inner color check
+                    if state.inner_color == self.colors[c]:
+                        if dist < smallest_inner_dist:
+                            smallest_inner_dist = dist
+
+            f[c] = smallest_outer_dist
+            f[len(self.colors) + c] = smallest_inner_dist
 
         if self.use_continuous_features:
-            mindist_outer_color_1 = self._cf[:, :, ObjectWorld.OuterColorIndex, ObjectWorld.Color1Index]
-            mindist_outer_color_2 = self._cf[:, :, ObjectWorld.OuterColorIndex, ObjectWorld.Color2Index]
-
-            color_1_within_3 = mindist_outer_color_1 <= 3
-            color_2_within_2 = mindist_outer_color_2 <= 2
-
-            positive = np.logical_and(color_1_within_3, color_2_within_2)
-            negative = np.logical_and(color_1_within_3, np.logical_not(color_2_within_2))
+            return f
         else:
-            bv_color_1 = self._df[:, :, ObjectWorld.OuterColorIndex, ObjectWorld.Color1Index]
-            bv_color_2 = self._df[:, :, ObjectWorld.OuterColorIndex, ObjectWorld.Color2Index]
-            
-            color_1_within_3 = np.all(bv_color_1[:, :, 3-1:], axis=2)
-            color_2_within_2 = np.all(bv_color_2[:, :, 2-1:], axis=2)
+            f_discrete = np.array(
+                [False for i in range(len(self.colors) * 2 * self.size)],
+                dtype=bool
+            )
 
-            positive = np.logical_and(color_1_within_3, color_2_within_2)
-            negative = np.logical_and(color_1_within_3, np.logical_not(color_2_within_2))
+            for c in range(len(self.colors)):
+                for n in range(1, self.size + 1):
+                    # Store outer color binary map
+                    f_discrete[c * self.size + (n - 1)] = f[c] < n
 
-        for yi in range(self.size):
-            for xi in range(self.size):
-                if positive[yi, xi]:
-                    self.reward_grid[yi, xi] = 1
-                elif negative[yi, xi]:
-                    self.reward_grid[yi, xi] = -1
+                    # Store inner color binary map
+                    f_discrete[len(self.colors) * self.size + c * self.size + (n - 1)] = f[len(self.colors) + c] < n
+
+            return f_discrete
+
+
+    def get_reward_from_feature(self, f):
+        """
+        Compute the reward vector for a given feature f
+        """
+
+        if self.use_continuous_features:
+
+            if f[0] <= ObjectWorld.Color1Dist:
+                # Close to color 0
+                if f[1] <= ObjectWorld.Color2Dist:
+                    # Close to color 1
+                    return 1
                 else:
-                    self.reward_grid[yi, xi] = 0
+                    return -1
+            else:
+                return 0
+
+        else:
+
+            color_0_outer_binary_map = f[0:self.size]
+            color_1_outer_binary_map = f[self.size:(self.size * 2)]
+            #color_0_inner_binary_map = f[(self.size * 2):(self.size*3)]
+            #color_1_inner_binary_map = f[(self.size * 3):]
+
+            if np.all(color_0_outer_binary_map[ObjectWorld.Color1Dist-1:]):
+                # Close to color 0
+                if np.all(color_1_outer_binary_map[ObjectWorld.Color2Dist-1:]):
+                    # Close to color 1
+                    return 1
+                else:
+                    return -1
+            else:
+                return 0
 
 
     def __str__(self):
-        """
-        Get human-friendly string version of class
-        """
+        # Get string repr
         with show_complete_array():
-            return "ObjectWorld(\n  S = {},\n  V = {}\n)".format(
-                str(self.state_grid).replace("\n", "\n      "),
-                str(self.reward_grid).replace("\n", "\n      ")
+            return "ObjectWorld(\n  S={},\n  R={}\n)".format(
+                str(self.state_grid).replace("\n", "\n    "),
+                str(self.reward_grid).replace("\n", "\n    ")
             )
 
 
-    def get_reward_from_feature_vector(self, f):
-        """
-        Utility function to return the ground truth reward for a given feature vector
+    def get_primary_color(self):
+        return self.colors[0]
 
-        State reward is determined as follows:
-        The reward is positive for cells which are both within the
-        distance 3 of outer color 1 and distance 2 of outer color 2,
-        negative if only within distance 3 of outer color 1 and zero
-        otherwise. Inner colors are distractors.
-        """
 
-        if self.use_continuous_features:
+    def get_secondary_color(self):
+        return self.colors[1]
 
-            if f[self.OuterColorIndex, self.Color1Index] <= 3:
-                if f[self.OuterColorIndex, self.Color2Index] <= 2:
-                    return 1
-                else:
-                    return -1
-            else:
-                return 0
 
+    def get_relevant_objects(self, *, unique=True):
+        arr = np.array([])
+        for yi in range(self.size):
+            for xi in range(self.size):
+                state = self.state_grid[yi, xi]
+                if state is None: continue
+                if state.outer_color in self.colors[0:1]:
+                    arr = np.append(state, arr)
+
+        if unique:
+            return np.unique(arr)
         else:
-
-            outer_color_1 = f[self.OuterColorIndex, self.Color1Index]
-            outer_color_2 = f[self.OuterColorIndex, self.Color2Index]
-            if (not np.any(outer_color_1[0:3-1])) and np.all(outer_color_1[3-1:]):
-                if (not np.any(outer_color_2[0:2-1])) and np.all(outer_color_2[2-1:]):
-                    return 1
-                else:
-                    return -1
-            else:
-                return 0
+            return arr
 
 
-    def get_feature_vector(self, x, y):
-        """
-        Gets the feature vector for a state (x, y)
-        """
-        if self.use_continuous_features:
-            return self._cf[y, x]
+    def get_distractor_objects(self, *, unique=True):
+        arr = np.array([])
+        for yi in range(self.size):
+            for xi in range(self.size):
+                state = self.state_grid[yi, xi]
+                if state is None: continue
+                if state.outer_color not in self.colors[0:1]:
+                    arr = np.append(state, arr)
+
+        if unique:
+            return np.unique(arr)
         else:
-            return self._df[y, x]
+            return arr
 
 
-    def get_reward(self, x, y):
-        """
-        Gets the reward of a state (x, y)
-        """
-        return self.reward_grid[y, x]
-
-
-    def _get_color_list(self):
-        """
-        Returns a color list
-        """
-        # These are the "Tableau 20" colors as RGB.  
-        tableau20 = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),  
-                     (44, 160, 44), (152, 223, 138), (214, 39, 40), (255, 152, 150),  
-                     (148, 103, 189), (197, 176, 213), (140, 86, 75), (196, 156, 148),  
-                     (227, 119, 194), (247, 182, 210), (127, 127, 127), (199, 199, 199),  
-                     (188, 189, 34), (219, 219, 141), (23, 190, 207), (158, 218, 229)]  
-          
-        # Scale the RGB values to the [0, 1] range, which is the format matplotlib accepts.  
-        for i in range(len(tableau20)):  
-            r, g, b = tableau20[i]  
-            tableau20[i] = (r / 255., g / 255., b / 255.)
-
-        return tableau20
-
-
-    def _generate_figure(self, *, show_inner_colors=True, color_array=None):
+    def generate_figure(self, show_distractors=True):
         """
         Internal method - generates a figure for display or saving
         """
@@ -306,7 +349,7 @@ class ObjectWorld:
         # Plot rewards
         remap_range = lambda r: float(r - ObjectWorld.MinReward) / (ObjectWorld.MaxReward - ObjectWorld.MinReward)
         reward_colors=np.array([
-            [remap_range(a), remap_range(a), remap_range(a)] for a in np.ravel(
+            [remap_range(r), remap_range(r), remap_range(r)] for r in np.ravel(
                 np.flip(self.reward_grid, 0)
             )
         ])
@@ -328,30 +371,29 @@ class ObjectWorld:
         
 
         # Plot objects
-        color_list = color_array
-        if color_list is None:
-            color_list = self._get_color_list()
         for yi in range(self.size):
             for xi in range(self.size):
-                state = np.flip(self.state_grid, 0)[yi][xi]
+                state = np.flip(self.state_grid, 0)[yi, xi]
+                if state is None: continue
 
-                if state[0] == -1:
-                    continue
+                if state.outer_color not in self.colors[0:2]:
+                    # This object is a distractor
+                    if not show_distractors:
+                        continue
 
                 ax.add_artist(plt.Circle(
                         (xi + 0.5, yi + 0.5),
                         radius=point_radius,
-                        color=color_list[state[0]]
+                        color=state.outer_color.value
                     )
                 )
 
-                if show_inner_colors:
-                    ax.add_artist(plt.Circle(
-                            (xi + 0.5, yi + 0.5),
-                            radius=point_radius * 0.4,
-                            color=color_list[state[1]]
-                        )
+                ax.add_artist(plt.Circle(
+                        (xi + 0.5, yi + 0.5),
+                        radius=point_radius * 0.4,
+                        color=state.inner_color.value
                     )
+                )
 
         # Draw horizontal grid lines
         for i in range(self.size - 1):
@@ -379,31 +421,45 @@ class ObjectWorld:
 
         ax.tick_params(length=0, labelbottom="off", labelleft="off")
 
+        #plt.title("ObjectWorld")
+        plt.figtext(
+            0.5125,
+            0.925,
+            "{}ObjectWorld".format(
+                "{} ".format(self.name) if self.name is not None else ""
+            ),
+            fontsize=14,
+            ha='center'
+        )
+        plt.figtext(
+            0.5125,
+            0.89,
+            "({}, {}, {})".format(
+                "Continuous" if self.use_continuous_features else "Discrete",
+                "Manhattan" if self.use_manhattan_distance else "Euclidian",
+                "Infinite" if self.wrap_at_edges else "Finite",
+            ),
+            fontsize=10,
+            ha='center'
+        )
+        
         # Figure is now ready for display or saving
         return fig
 
 
-    def display_figure(self, *, show_inner_colors=True, color_array=None):
+    @staticmethod
+    def save_figure(figure, filename, *, dpi=None):
         """
-        Renders the current world state to an image
+        Renders the given figure to an image
         """
-        fig = self._generate_figure(show_inner_colors=show_inner_colors, color_array=color_array)
-        plt.show()
-
-
-    def save_figure(self, filename, *, show_inner_colors=True, color_array=None, dpi=None):
-        """
-        Renders the current world state to an image
-        """
-        fig = self._generate_figure(show_inner_colors=show_inner_colors, color_array=color_array)
-        fig.savefig(
+        figure.savefig(
             filename,
             dpi=dpi,
             transparent=True,
             bbox_inches='tight',
             pad_inches=0
         )
-        plt.close()
+
 
 
 def test_objectworld():
@@ -413,9 +469,38 @@ def test_objectworld():
 
     import pickle
 
+    seed = np.random.randint(5000)
+    print("Using seed {}".format(seed))
+
+    colors = [ObjectWorld.Color(c) for c in tableau20[0:7]]
+    #colors = [ObjectWorld.Color('r'), ObjectWorld.Color('g')]
+    size=13
+
     # Create a new random ObjectWorld
-    ow = ObjectWorld(size=13)  
+    ow = ObjectWorld(
+        colors=colors,
+        size=size,
+        wrap_at_edges=True,
+        random_seed=seed
+    )
     print(ow)
+    #print(ow.feature_grid)
+    #print(ow.get_primary_color())
+    #print(ow.get_secondary_color())
+    #print(ow.get_relevant_objects())
+    #print(ow.get_distractor_objects())
+
+    # Compare with the discrete version
+    #ow_disc = ObjectWorld(
+    #    colors=colors,
+    #    size=size,
+    #    use_continuous_features=False,
+    #    random_seed=seed
+    #)
+    #fig = ow_disc.generate_figure()
+    #plt.ion()
+    #plt.show()
+    #plt.ioff()
 
     # Test saving and loading to/from pickles
     filename = "sample_objectworld.pickle"
@@ -427,12 +512,14 @@ def test_objectworld():
     with open(filename, "rb") as file:          
         print("Loading from {}".format(filename))
         ow_loaded = pickle.load(file)
-        assert (not np.any(ow_loaded.state_grid != ow.state_grid)), "Loaded state grid did not match saved"
+        assert (not np.any(ow_loaded.state_grid != ow.state_grid)), \
+            "Loaded state grid did not match saved"
         print("Done")
 
     # Test save and display functionality
-    ow.save_figure("sample_objectworld.pdf")
-    ow.display_figure()
+    fig = ow.generate_figure()
+    ObjectWorld.save_figure(fig, "sample_objectworld.pdf")
+    plt.show()
 
 
 if __name__ == "__main__":
