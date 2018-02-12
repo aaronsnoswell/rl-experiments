@@ -70,7 +70,7 @@ class MarkovProcess():
         """
         Returns the state transition matrix
         """
-        return self.transition_matrix
+        return self.state_transition_matrix
 
 
     @staticmethod
