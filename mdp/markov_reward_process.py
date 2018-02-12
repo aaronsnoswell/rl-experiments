@@ -105,7 +105,7 @@ class MarkovRewardProcess(MarkovProcess):
 
     def get_value_map(self, *, num_rollouts=1000, max_length=None):
         """
-        Performs many rollouts to compute an estimate of the vale function
+        Performs many rollouts to compute an estimate of the value function
         """
 
         print(
