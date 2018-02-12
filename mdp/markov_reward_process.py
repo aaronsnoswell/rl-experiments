@@ -30,6 +30,17 @@ class MarkovRewardProcess(MarkovProcess):
         return self.reward_mapping
 
 
+    def get_reward_vector(self):
+        """
+        Returns the reward vector [r_i, ...] for every state s_i
+        in the ordered list state_set
+        """
+        reward_vector = np.array([])
+        for state in self.state_set:
+            reward_vector = np.append(reward_vector, self.reward_mapping[state])
+        return reward_vector
+
+
     def get_discount_factor(self):
         """
         Returns the discount factor
