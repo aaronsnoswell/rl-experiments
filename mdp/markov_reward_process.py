@@ -50,6 +50,33 @@ class MarkovRewardProcess(MarkovProcess):
         return reward_vector
 
 
+    def solve_bellman_equation(self):
+        """
+        Solves the Bellman equation for the MRP giving
+        v = ((I - discount*P)^-1) * R
+        This is only feasible for small processes
+        """
+
+        assert self.discount_factor != 1, \
+            "Cannot solve bellman equation for infinitely far-sighted process (results in a singular matrix inversion)"
+
+        value_vector = np.matmul(
+            np.linalg.inv(
+                np.identity(
+                    len(self.state_set)
+                ) - self.discount_factor * self.state_transition_matrix
+            ),
+            self.get_reward_vector()
+        )
+
+        self.value_map = {}
+        for i in range(len(self.state_set)):
+            self.value_map[self.state_set[i]] = value_vector[i]
+
+        return self.value_map
+
+
+
     def get_discount_factor(self):
         """
         Returns the discount factor
