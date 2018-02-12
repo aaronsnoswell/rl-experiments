@@ -421,7 +421,7 @@ class ObjectWorld():
 
         ax.tick_params(length=0, labelbottom="off", labelleft="off")
 
-        #plt.title("ObjectWorld")
+        # Add title and subtitle
         plt.figtext(
             0.5125,
             0.925,
@@ -442,6 +442,7 @@ class ObjectWorld():
             fontsize=10,
             ha='center'
         )
+
         
         # Figure is now ready for display or saving
         return fig

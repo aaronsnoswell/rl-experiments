@@ -40,7 +40,6 @@ ow = ObjectWorld(
 )
 
 print(ow)
-print(ow.feature_grid[:, :, 0])
 fig = ow.generate_figure()
 ObjectWorld.save_figure(fig, "alger.pdf")
 plt.show()
