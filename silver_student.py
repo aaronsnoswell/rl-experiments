@@ -6,9 +6,10 @@ lecture series, lecture 2
 import numpy as np
 
 from mdp import MarkovProcess
+from mdp import MarkovRewardProcess
 
 
-class Student(MarkovProcess):
+class Student(MarkovRewardProcess):
     """
     An implementation of student markov chain from David Silver's
     Reinforcement Learning lecture series, lecture 2
@@ -48,27 +49,18 @@ class Student(MarkovProcess):
             }
         )
 
+        self.reward_mapping = {
+            "C1": -2,
+            "C2": -2,
+            "C3": -2,
+            "Pass": 10,
+            "Pub": 1,
+            "FB": -1,
+            "Sleep": 0
+        }
 
-    def get_state_set(self):
-        """
-        Returns the set of states
-        """
-        return self.state_set
-
-
-    def get_terminal_state_set(self):
-        """
-        Returns the set of terminal states
-        """
-        return self.terminal_state_set
-
-
-    def get_state_transition_matrix(self):
-        """
-        Returns the state transition matrix
-        """
-        return self.transition_matrix
+        self.discount_factor = 0.5
 
 
 aaron = Student()
-print(aaron.rollout("C1"))
+print(aaron.get_value("C1"))

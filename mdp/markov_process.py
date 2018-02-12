@@ -21,7 +21,7 @@ class MarkovProcess():
 
     def rollout(self, current_state, *, max_length=None):
         """
-        Returns a single rollout of the process [S, S', S'', ..., S_termainl]
+        Returns a single rollout of the process [S, S', S'', ..., S_terminal]
         """
         assert current_state in self.state_set, \
             "Given state is not in state set"
@@ -32,7 +32,6 @@ class MarkovProcess():
             
             if max_length is not None:
                 if len(history) >= max_length: break
-
             curr = self.transition(curr)
             history = np.append(history, curr)
 
@@ -57,28 +56,29 @@ class MarkovProcess():
         """
         Returns the set of all states
         """
-        raise NotImplementedError
+        return self.state_set
 
 
     def get_terminal_state_set(self):
         """
         Returns the set of terminal states
         """
-        raise NotImplementedError
+        return self.terminal_state_set
 
 
     def get_state_transition_matrix(self):
         """
         Returns the state transition matrix
         """
-        raise NotImplementedError
+        return self.transition_matrix
 
 
     @staticmethod
     def from_dict(markov_process_dict):
         """
         Converts a dictionary {s: {s: p, s': p_s', ...}, ...} to
-        a set of states [s, s', ...] and a state transition matrix
+        a set of states [s, s', ...], a state transition matrix,
+        and a set of terminal states [s_t, ...]
         """
 
         # Build state set
