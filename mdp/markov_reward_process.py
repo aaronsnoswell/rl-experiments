@@ -112,7 +112,6 @@ class MarkovRewardProcess(MarkovProcess):
         return value
 
 
-
     def get_return(self, current_state, *, max_length=None):
         """
         Rolls out the MRP once from the given state and calculates the return
@@ -136,7 +135,6 @@ class MarkovRewardProcess(MarkovProcess):
             discounted_rewards[i] = reward * self.discount_factor ** i
 
         return np.sum(discounted_rewards)
-
 
 
     def get_value_map(self, *, num_rollouts=1000, max_length=None):
@@ -193,7 +191,6 @@ class MarkovRewardProcess(MarkovProcess):
             )
 
         return history
-
 
 
     def transition(self, current_state):
