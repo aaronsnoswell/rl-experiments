@@ -5,11 +5,10 @@ lecture series, lecture 2
 
 import numpy as np
 
-from mdp import MarkovProcess
-from mdp import MarkovRewardProcess
+from mdp import MarkovDecisionProcess
 
 
-class Student(MarkovRewardProcess):
+class Student(MarkovDecisionProcess):
     """
     An implementation of student markov chain from David Silver's
     Reinforcement Learning lecture series, lecture 2
@@ -20,44 +19,66 @@ class Student(MarkovRewardProcess):
         Constructor
         """
 
-        self.state_set, self.transition_matrix, self.terminal_state_set = MarkovProcess.from_dict(
+        self.state_set, self.action_set, self.transition_matrix, \
+            self.terminal_state_set = MarkovDecisionProcess.from_dict(
             {
                 "C1": {
-                    "FB": 0.5,
-                    "C2": 0.5
+                    "Study": {
+                        "C2": 1
+                    },
+                    "Facebook": {
+                        "FB": 1
+                    }
                 },
                 "C2": {
-                    "Sleep": 0.2,
-                    "C3": 0.8
+                    "Sleep": {
+                        "Sleep": 1
+                    },
+                    "Study": {
+                        "C3": 1
+                    }
                 },
                 "C3": {
-                    "Pass": 0.6,
-                    "Pub": 0.4
-                },
-                "Pass": {
-                    "Sleep": 1
-                },
-                "Pub": {
-                    "C1": 0.2,
-                    "C2": 0.4,
-                    "C3": 0.4
+                    "Study": {
+                        "Sleep": 1
+                    },
+                    "Pub": {
+                        "C1": 0.2,
+                        "C2": 0.4,
+                        "C3": 0.4
+                    }
                 },
                 "FB": {
-                    "FB": 0.9,
-                    "C1": 0.1
+                    "Facebook": {
+                        "FB": 1
+                    },
+                    "Quit": {
+                        "C1": 1
+                    }
                 },
             }
         )
 
         self.reward_mapping = {
-            "C1": -2,
-            "C2": -2,
-            "C3": -2,
-            "Pass": 10,
-            "Pub": 1,
-            "FB": -1,
-            "Sleep": 0
+            "C1": {
+                "Study": -2,
+                "Facebook": -1
+            },
+            "C2": {
+                "Study": -2,
+                "Sleep": 0
+            },
+            "C3": {
+                "Study": 10,
+                "Pub": 1
+            },
+            "FB": {
+                "Facebook": -1,
+                "Quit": 0
+            }
         }
 
         self.discount_factor = 0.5
 
+aaron = Student()
+print(aaron)
