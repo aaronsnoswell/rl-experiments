@@ -18,8 +18,8 @@ class Student(MarkovProcess):
         """
         Constructor
         """
-        
-        self.state_set, self.state_transition_matrix = MarkovProcess.from_dict(
+
+        self.state_set, self.state_transition_matrix, self.terminal_state_set = MarkovProcess.from_dict(
             {
                 "C1": {
                     "FB": 0.5,
@@ -49,18 +49,26 @@ class Student(MarkovProcess):
         )
 
 
-    def get_state_set():
+    def get_state_set(self):
         """
         Returns the set of states
         """
         return self.state_set
 
 
-    def get_state_transition_matrix():
+    def get_terminal_state_set(self):
+        """
+        Returns the set of terminal states
+        """
+        return self.terminal_state_set
+
+
+    def get_state_transition_matrix(self):
         """
         Returns the state transition matrix
         """
         return self.transition_matrix
 
 
-a = Student()
+aaron = Student()
+print(aaron.rollout("C1"))
