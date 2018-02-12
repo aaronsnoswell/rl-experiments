@@ -19,7 +19,7 @@ class MarkovProcess():
         raise NotImplementedError
 
 
-    def rollout(self, current_state):
+    def rollout(self, current_state, *, max_length=None):
         """
         Returns a single rollout of the process [S, S', S'', ..., S_termainl]
         """
@@ -29,6 +29,10 @@ class MarkovProcess():
         curr = current_state
         history = np.array([current_state])
         while curr not in self.terminal_state_set:
+            
+            if max_length is not None:
+                if len(history) >= max_length: break
+
             curr = self.transition(curr)
             history = np.append(history, curr)
 
