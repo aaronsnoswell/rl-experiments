@@ -107,3 +107,4 @@ venv.bak/
 **/*.pickle
 
 **/*.pdf
+**/*.png
