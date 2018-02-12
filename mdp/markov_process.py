@@ -83,7 +83,7 @@ class MarkovProcess():
     @staticmethod
     def from_dict(markov_process_dict):
         """
-        Converts a dictionary {s: {s: p, s': p_s', ...}, ...} to
+        Converts a dictionary {s: {s': p_s', ...}, ...} to
         a set of states [s, s', ...], a state transition matrix,
         and a set of terminal states [s_t, ...]
         """
