@@ -26,7 +26,7 @@ class MarkovRewardProcess(MarkovProcess):
     def __str__(self):
         return "<MarkovRewardProcess(\n  S: {}\n  P: {}\n  R: {}\n  gamma: {}\n)>".format(
             str(self.state_set).replace("\n", "\n     "),
-            str(self.state_transition_matrix).replace("\n", "\n     "),
+            str(self.transition_matrix).replace("\n", "\n     "),
             str(self.reward_mapping).replace("\n", "\n     "),
             self.discount_factor
         )
@@ -64,7 +64,7 @@ class MarkovRewardProcess(MarkovProcess):
             np.linalg.inv(
                 np.identity(
                     len(self.state_set)
-                ) - self.discount_factor * self.state_transition_matrix
+                ) - self.discount_factor * self.transition_matrix
             ),
             self.get_reward_vector()
         )

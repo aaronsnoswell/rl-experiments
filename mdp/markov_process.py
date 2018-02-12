@@ -22,7 +22,7 @@ class MarkovProcess():
     def __str__(self):
         return "<MarkovProcess(\n  S: {}\n  P: {}\n)>".format(
             str(self.state_set).replace("\n", "\n     "),
-            str(self.state_transition_matrix).replace("\n", "\n     ")
+            str(self.transition_matrix).replace("\n", "\n     ")
         )
 
 
@@ -55,7 +55,7 @@ class MarkovProcess():
         index = np.where(self.state_set == current_state)[0][0]
         return np.random.choice(
             self.state_set,
-            p=self.state_transition_matrix[index, :]
+            p=self.transition_matrix[index, :]
         )
 
 
@@ -73,11 +73,11 @@ class MarkovProcess():
         return self.terminal_state_set
 
 
-    def get_state_transition_matrix(self):
+    def get_transition_matrix(self):
         """
         Returns the state transition matrix
         """
-        return self.state_transition_matrix
+        return self.transition_matrix
 
 
     @staticmethod

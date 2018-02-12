@@ -20,7 +20,7 @@ class Student(MarkovRewardProcess):
         Constructor
         """
 
-        self.state_set, self.state_transition_matrix, self.terminal_state_set = MarkovProcess.from_dict(
+        self.state_set, self.transition_matrix, self.terminal_state_set = MarkovProcess.from_dict(
             {
                 "C1": {
                     "FB": 0.5,
