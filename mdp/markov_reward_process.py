@@ -23,6 +23,15 @@ class MarkovRewardProcess(MarkovProcess):
         raise NotImplementedError
 
 
+    def __str__(self):
+        return "<MarkovRewardProcess(\n  S: {}\n  P: {}\n  R: {}\n  gamma: {}\n)>".format(
+            str(self.state_set).replace("\n", "\n     "),
+            str(self.state_transition_matrix).replace("\n", "\n     "),
+            str(self.reward_mapping).replace("\n", "\n     "),
+            self.discount_factor
+        )
+
+
     def get_reward_mapping(self):
         """
         Returns the reward mapping {s_i: r_i}

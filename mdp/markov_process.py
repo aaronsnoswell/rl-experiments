@@ -19,6 +19,13 @@ class MarkovProcess():
         raise NotImplementedError
 
 
+    def __str__(self):
+        return "<MarkovProcess(\n  S: {}\n  P: {}\n)>".format(
+            str(self.state_set).replace("\n", "\n     "),
+            str(self.state_transition_matrix).replace("\n", "\n     ")
+        )
+
+
     def rollout(self, current_state, *, max_length=None):
         """
         Returns a single rollout of the process [S, S', S'', ..., S_terminal]
