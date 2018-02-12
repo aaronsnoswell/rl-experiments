@@ -63,4 +63,5 @@ class Student(MarkovRewardProcess):
 
 
 aaron = Student()
-print(aaron.get_value("C1"))
+aaron.discount_factor = 0
+print(aaron.get_value_map())

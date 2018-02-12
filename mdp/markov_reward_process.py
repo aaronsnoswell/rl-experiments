@@ -68,7 +68,7 @@ class MarkovRewardProcess(MarkovProcess):
 
     def get_return(self, current_state, *, max_length=None):
         """
-        Rolls out the MRP once from the current state and calculates the return
+        Rolls out the MRP once from the given state and calculates the return
         """
         assert current_state in self.state_set, \
             "Given state is not in state set"
@@ -89,6 +89,32 @@ class MarkovRewardProcess(MarkovProcess):
             discounted_rewards[i] = reward * self.discount_factor ** i
 
         return np.sum(discounted_rewards)
+
+
+
+    def get_value_map(self, *, num_rollouts=1000, max_length=None):
+        """
+        Performs many rollouts to compute an estimate of the vale function
+        """
+
+        print(
+            "Computing value function with {} rollouts, discount {} and max length {}".format(
+                num_rollouts,
+                self.discount_factor,
+                max_length
+            )
+        )
+        print("(this may take a while...)")
+
+        self.value_map = {}
+        for state in self.state_set:
+            self.value_map[state] = self.get_value(
+                state,
+                num_rollouts=num_rollouts,
+                max_length=max_length
+            )
+
+        return self.value_map
 
 
     def rollout(self, current_state, *, max_length=None):
