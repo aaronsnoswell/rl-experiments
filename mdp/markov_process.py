@@ -19,14 +19,51 @@ class MarkovProcess():
         raise NotImplementedError
 
 
-    def get_state_set():
+    def rollout(self, current_state):
         """
-        Returns the set of states
+        Returns a single rollout of the process [S, S', S'', ..., S_termainl]
+        """
+        assert current_state in self.state_set, \
+            "Given state is not in state set"
+
+        curr = current_state
+        history = np.array([current_state])
+        while curr not in self.terminal_state_set:
+            curr = self.transition(curr)
+            history = np.append(history, curr)
+
+        return history
+
+
+    def transition(self, current_state):
+        """
+        Returns a subsequent state
+        """
+        assert current_state in self.state_set, \
+            "Given state is not in state set"
+
+        index = np.where(self.state_set == current_state)[0][0]
+        return np.random.choice(
+            self.state_set,
+            p=self.state_transition_matrix[index, :]
+        )
+
+
+    def get_state_set(self):
+        """
+        Returns the set of all states
         """
         raise NotImplementedError
 
 
-    def get_state_transition_matrix():
+    def get_terminal_state_set(self):
+        """
+        Returns the set of terminal states
+        """
+        raise NotImplementedError
+
+
+    def get_state_transition_matrix(self):
         """
         Returns the state transition matrix
         """
@@ -48,6 +85,9 @@ class MarkovProcess():
                     state_set.append(subsequent_state)
         state_set = np.array(state_set)
 
+        # Initialize terminal state set
+        terminal_state_set = np.array([])
+
         # Build transition matrix
         transition_matrix = np.zeros(
             shape=(len(state_set), len(state_set))
@@ -60,6 +100,7 @@ class MarkovProcess():
             if state not in markov_process_dict:
                 # This state is terminal
                 transition_matrix[i, i] = 1
+                terminal_state_set = np.append(state, terminal_state_set)
                 continue
 
             # Get transition probabilities for this state
@@ -76,6 +117,4 @@ class MarkovProcess():
                 transition_matrix[i, j] = probs[subsequent_state]
 
 
-
-
-        return state_set, transition_matrix
+        return state_set, transition_matrix, terminal_state_set
