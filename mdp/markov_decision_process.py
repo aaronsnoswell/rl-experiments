@@ -229,6 +229,19 @@ class MarkovDecisionProcess(MarkovRewardProcess):
         return (action, reward, new_state)
 
 
+    def decompose(self, policy):
+        """
+        Decomposes this MDP, in addition with the given policy, to a MRP
+        See https://stackoverflow.com/a/18403354/885287 for technical method to
+        dynamically define a sub-class in python
+
+        TODO ajs 18/Feb/2018 implement this
+        """
+
+        def mrp_init(self):
+            pass
+
+        return type("FoozleWoozle", (MarkovRewardProcess,), {'__init__': mrp_init})
 
 
     @staticmethod

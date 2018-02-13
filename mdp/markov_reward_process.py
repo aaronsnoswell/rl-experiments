@@ -204,10 +204,21 @@ class MarkovRewardProcess(MarkovProcess):
         """
         Returns the reward for being in the current state, and a subsequent state
         """
-        
+
         assert current_state in self.state_set, \
             "Given state is not in state set"
 
         reward = self.get_expected_reward(current_state)
         new_state = super().transition(current_state)
         return (reward, new_state)
+
+
+    def decompose(self, policy):
+        """
+        Decomposes this MRP to a Markov Process by discarding the reward terms
+        See https://stackoverflow.com/a/18403354/885287 for technical method to
+        dynamically define a sub-class
+
+        TODO ajs 18/Feb/2018 implement this
+        """
+        raise NotImplementedError
