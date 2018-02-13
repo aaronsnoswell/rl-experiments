@@ -21,7 +21,8 @@ class Student(MarkovDecisionProcess):
         """
 
         self.state_set, self.action_set, self.transition_matrix, \
-            self.possible_action_mapping, self.terminal_state_set = MarkovDecisionProcess.from_dict(
+            self.possible_action_mapping, self.terminal_state_set \
+                = MarkovDecisionProcess.from_dict(
             {
                 "C1": {
                     "Study": {
