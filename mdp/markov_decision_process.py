@@ -141,11 +141,11 @@ class MarkovDecisionProcess(MarkovRewardProcess):
 
     def get_value_map(self, policy, *, num_rollouts=1000, max_length=None):
         """
-        Performs many rollouts to compute an estimate of the value function
+        Performs many rollouts to compute an estimate of the state-value function
         """
 
         print(
-            "Computing value function with {} rollouts, discount {} and max length {}".format(
+            "Computing state-value function with {} rollouts, discount {} and max length {}".format(
                 num_rollouts,
                 self.discount_factor,
                 max_length
