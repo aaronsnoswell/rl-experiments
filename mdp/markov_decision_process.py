@@ -26,6 +26,9 @@ class MarkovDecisionProcess(MarkovRewardProcess):
 
 
     def __str__(self):
+        """
+        Get string representation
+        """
         return "<MarkovDecisionProcess(\n  S: {}\n  A: {}\n  P: {}\n  R: {}\n  gamma: {}\n)>".format(
             str(self.state_set).replace("\n", "\n     "),
             str(self.action_set).replace("\n", "\n     "),

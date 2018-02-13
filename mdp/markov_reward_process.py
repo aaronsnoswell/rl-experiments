@@ -24,6 +24,9 @@ class MarkovRewardProcess(MarkovProcess):
 
 
     def __str__(self):
+        """
+        Get string representation
+        """
         return "<MarkovRewardProcess(\n  S: {}\n  P: {}\n  R: {}\n  gamma: {}\n)>".format(
             str(self.state_set).replace("\n", "\n     "),
             str(self.transition_matrix).replace("\n", "\n     "),
@@ -88,6 +91,7 @@ class MarkovRewardProcess(MarkovProcess):
         """
         Returns the expected reward at time t+1 given we are currently in the given state s_t
         """
+
         assert current_state in self.state_set, \
             "Given state is not in state set"
 
@@ -101,6 +105,7 @@ class MarkovRewardProcess(MarkovProcess):
         """
         Computes an expectation of return up to horizon max_length from the current state
         """
+
         assert current_state in self.state_set, \
             "Given state is not in state set"
 
@@ -116,6 +121,7 @@ class MarkovRewardProcess(MarkovProcess):
         """
         Rolls out the MRP once from the given state and calculates the return
         """
+
         assert current_state in self.state_set, \
             "Given state is not in state set"
 
@@ -164,8 +170,9 @@ class MarkovRewardProcess(MarkovProcess):
 
     def rollout(self, current_state, *, max_length=None):
         """
-        Returns a single rollout of the process [S, S', S'', ..., S_terminal]
+        Returns a single rollout of the process [(R, S), (R', S'), ..., (R_terminal, S_terminal)]
         """
+
         assert current_state in self.state_set, \
             "Given state is not in state set"
 
@@ -197,6 +204,7 @@ class MarkovRewardProcess(MarkovProcess):
         """
         Returns the reward for being in the current state, and a subsequent state
         """
+        
         assert current_state in self.state_set, \
             "Given state is not in state set"
 

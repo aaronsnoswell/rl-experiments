@@ -20,6 +20,9 @@ class MarkovProcess():
 
 
     def __str__(self):
+        """
+        Get string representation
+        """
         return "<MarkovProcess(\n  S: {}\n  P: {}\n)>".format(
             str(self.state_set).replace("\n", "\n     "),
             str(self.transition_matrix).replace("\n", "\n     ")
