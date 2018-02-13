@@ -151,7 +151,7 @@ class MarkovRewardProcess(MarkovProcess):
         return np.sum(discounted_rewards)
 
 
-    def get_value_map(self, *, num_rollouts=1000, max_length=None):
+    def get_value_map(self, *, num_rollouts=10000, max_length=None):
         """
         Performs many rollouts to compute an estimate of the value function
         """
@@ -219,6 +219,39 @@ class MarkovRewardProcess(MarkovProcess):
         reward = self.get_expected_reward(current_state)
         new_state = super().transition(current_state)
         return (reward, new_state)
+
+
+    def compute_stationary_distribution(self, *, num_rollouts=10000, max_length=None):
+        """
+        Estimates the stationary distribution of a process
+        """
+
+        print("Estimating the stationary distribution with {} rollouts".format(num_rollouts))
+        print("(this may take a while)")
+        
+        state_counts = {}
+        for state in self.state_set:
+            state_counts[state] = 0
+
+        total_visited_states = 0
+        for n in range(num_rollouts):
+            # Pick a starting state
+            start_state = np.random.choice(self.state_set)
+
+            # Do a full rollout
+            rollout = self.rollout(start_state, max_length=max_length)
+            total_visited_states += len(rollout)
+
+            # Add up the states we visited
+            for got_reward, visited_sate in rollout:
+                state_counts[visited_sate] += 1
+
+        # Convert to a probability
+        stationary_distribution = []
+        for state in state_counts:
+            stationary_distribution.append(state_counts[state] / total_visited_states)
+
+        return np.array(stationary_distribution)
 
 
     def decompose(self):

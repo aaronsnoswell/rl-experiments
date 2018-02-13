@@ -106,7 +106,7 @@ class MarkovDecisionProcess(MarkovRewardProcess):
         return self.reward_mapping[current_state].get(action, None)
 
 
-    def get_value(self, current_state, policy, *, num_rollouts=1000, max_length=None):
+    def get_value(self, current_state, policy, *, num_rollouts=10000, max_length=None):
         """
         Computes an expectation of return up to horizon max_length from the current state
         """
@@ -148,7 +148,7 @@ class MarkovDecisionProcess(MarkovRewardProcess):
         return np.sum(discounted_rewards)
 
 
-    def get_value_map(self, policy, *, num_rollouts=1000, max_length=None):
+    def get_value_map(self, policy, *, num_rollouts=10000, max_length=None):
         """
         Performs many rollouts to compute an estimate of the state-value function
         """
@@ -236,6 +236,39 @@ class MarkovDecisionProcess(MarkovRewardProcess):
         )
 
         return (action, reward, new_state)
+
+
+    def compute_stationary_distribution(self, policy, *, num_rollouts=10000, max_length=None):
+        """
+        Estimates the stationary distribution of a process
+        """
+
+        print("Estimating the stationary distribution with {} rollouts".format(num_rollouts))
+        print("(this may take a while)")
+        
+        state_counts = {}
+        for state in self.state_set:
+            state_counts[state] = 0
+
+        total_visited_states = 0
+        for n in range(num_rollouts):
+            # Pick a starting state
+            start_state = np.random.choice(self.state_set)
+
+            # Do a full rollout
+            rollout = self.rollout(start_state, policy, max_length=max_length)
+            total_visited_states += len(rollout)
+
+            # Add up the states we visited
+            for action_taken, got_reward, visited_sate in rollout:
+                state_counts[visited_sate] += 1
+
+        # Convert to a probability
+        stationary_distribution = []
+        for state in state_counts:
+            stationary_distribution.append(state_counts[state] / total_visited_states)
+
+        return np.array(stationary_distribution)
 
 
     def decompose(self, policy):
