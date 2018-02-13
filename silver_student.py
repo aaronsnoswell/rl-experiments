@@ -83,7 +83,36 @@ class Student(MarkovDecisionProcess):
         self.discount_factor = 0.5
 
 
-aaron = Student()
-print(aaron)
-pol = UniformRandomPolicy(aaron)
-print(aaron.get_value_map(pol))
+def main():
+    """
+    Excercises the Student() class
+    """
+
+    # Create a new student MDP instance
+    jane = Student()
+    print(jane)
+
+    # And create a policy for them
+    not_great_studier = UniformRandomPolicy(jane)
+
+    # Test value map estimation under the policy
+    print(jane.get_value_map(not_great_studier))
+
+    # Decompose the MDP, under the policy, to a Markov Reward Process
+    # I.e. remove the 'agency' from this Student (hence the zombie joke)
+    jane_zombie = jane.decompose(not_great_studier)
+    print(jane_zombie)
+
+    # Decompose the MRP to a Markov Process
+    # A Zombie without any sense of value is just a meaningless zombie
+    # (Sorry for the terrible puns)
+    jane_meaningless_zombie = jane_zombie.decompose()
+    print(jane_meaningless_zombie)
+
+    # And just for fun, compute the stationary distribution of the MP
+    print(jane_meaningless_zombie.compute_stationary_distribution())
+    # ... turns out Jane spends around 27% of her time on Facebook
+
+
+if __name__ == "__main__":
+    main()
