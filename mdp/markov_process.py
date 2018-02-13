@@ -16,6 +16,12 @@ class MarkovProcess():
         """
         Constructor
         """
+
+        # A list of parameters that should be set by any sub-class
+        self.state_set
+        self.terminal_state_set
+        self.transition_matrix
+
         raise NotImplementedError
 
 

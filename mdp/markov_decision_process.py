@@ -22,6 +22,16 @@ class MarkovDecisionProcess(MarkovRewardProcess):
         """
         Constructor
         """
+
+        # A list of parameters that should be set by any sub-class
+        self.state_set
+        self.terminal_state_set
+        self.action_set
+        self.transition_matrix
+        self.reward_mapping
+        self.possible_action_mapping
+        self.discount_factor
+
         raise NotImplementedError
 
 
@@ -72,7 +82,6 @@ class MarkovDecisionProcess(MarkovRewardProcess):
         return reward_vector
 
 
-
     def solve_bellman_equation(self, policy):
         """
         Solves the Bellman equation for the MRP giving
@@ -89,10 +98,10 @@ class MarkovDecisionProcess(MarkovRewardProcess):
         """
 
         assert current_state in self.state_set, \
-            "Given state is not in state set"
+            "Given state ({}) is not in state set".format(current_state)
 
         assert current_state in self.reward_mapping, \
-            "Given state is not in reward mapping"
+            "Given state ({}) is not in reward mapping".format(current_state)
 
         return self.reward_mapping[current_state].get(action, None)
 
@@ -103,7 +112,7 @@ class MarkovDecisionProcess(MarkovRewardProcess):
         """
 
         assert current_state in self.state_set, \
-            "Given state is not in state set"
+            "Given state ({}) is not in state set".format(current_state)
 
         value = 0
         for i in range(num_rollouts):
@@ -119,7 +128,7 @@ class MarkovDecisionProcess(MarkovRewardProcess):
         """
 
         assert current_state in self.state_set, \
-            "Given state is not in state set"
+            "Given state ({}) is not in state set".format(current_state)
 
         # Perform rollout
         history = self.rollout(current_state, policy, max_length=max_length)
@@ -171,7 +180,7 @@ class MarkovDecisionProcess(MarkovRewardProcess):
         """
 
         assert current_state in self.state_set, \
-            "Given state is not in state set"
+            "Given state ({}) is not in state set".format(current_state)
 
         curr = (None, None, current_state)
 
@@ -215,7 +224,7 @@ class MarkovDecisionProcess(MarkovRewardProcess):
         """
 
         assert current_state in self.state_set, \
-            "Given state is not in state set"
+            "Given state ({}) is not in state set".format(current_state)
 
         reward = self.get_expected_reward(current_state, action)
         state_index = np.where(self.state_set == current_state)[0][0]
@@ -232,16 +241,74 @@ class MarkovDecisionProcess(MarkovRewardProcess):
     def decompose(self, policy):
         """
         Decomposes this MDP, in addition with the given policy, to a MRP
-        See https://stackoverflow.com/a/18403354/885287 for technical method to
-        dynamically define a sub-class in python
-
-        TODO ajs 18/Feb/2018 implement this
         """
 
-        def mrp_init(self):
-            pass
+        def mrp_init(self, parent_mdp, policy):
+            """
+            Decomposes a given MDP and policy into a latent MRP that
+            approximates the MDP/Policy combination
+            """
+            print("Initializing derived MRP from MDP")
 
-        return type("FoozleWoozle", (MarkovRewardProcess,), {'__init__': mrp_init})
+            # Set MDP parameters
+            self.state_set = parent_mdp.state_set
+            self.terminal_state_set = parent_mdp.terminal_state_set
+            self.discount_factor = parent_mdp.discount_factor
+
+            # Decompose the transition matrix based on the policy
+            self.transition_matrix = np.identity(len(self.state_set))
+
+            # Loop over all states
+            for si, state in enumerate(self.state_set):
+
+                if state in self.terminal_state_set: continue
+
+                # Prepare one row in the new transition matrix
+                transition_matrix_row = np.zeros(shape=len(self.state_set))
+
+                # Query the policy for a distribution over actions
+                action_distribution = policy.get_action_distribution(state)
+                for action in action_distribution:
+
+                    # Get an action index
+                    ai = np.where(parent_mdp.action_set == action)[0][0]
+
+                    # Get the preference/probability of the policy choosing this action
+                    pref_for_action = action_distribution[action]
+
+                    # Accumulate the true transition probabilities
+                    transition_matrix_row += pref_for_action * parent_mdp.transition_matrix[si * len(parent_mdp.action_set) + ai, :]
+
+                self.transition_matrix[si, :] = transition_matrix_row
+
+            # Decompose the reward mapping based on the policy
+            self.reward_mapping = {}
+            for si, state in enumerate(self.state_set):
+
+                # Prepare one entry in the reward mapping
+                self.reward_mapping[state] = 0
+
+                if state not in list(parent_mdp.reward_mapping.keys()):
+                    continue
+
+                # Query the policy for a distribution over actions
+                action_distribution = policy.get_action_distribution(state)
+                for action in action_distribution:
+
+                    # Get an action index
+                    ai = np.where(parent_mdp.action_set == action)[0][0]
+
+                    # Get the preference/probability of the policy choosing this action
+                    pref_for_action = action_distribution[action]
+
+                    # Acuumulate the true expected reward for being in this state
+                    expected_reward = parent_mdp.get_expected_reward(state, action)
+                    if expected_reward is not None:
+                        self.reward_mapping[state] += expected_reward
+
+
+        dynamic_class_type = type("DerivedMarkovRewardProcess", (MarkovRewardProcess, ), {'__init__': mrp_init})
+        return dynamic_class_type(self, policy)
 
 
     @staticmethod

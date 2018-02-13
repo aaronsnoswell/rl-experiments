@@ -20,6 +20,14 @@ class MarkovRewardProcess(MarkovProcess):
         """
         Constructor
         """
+
+        # A list of parameters that should be set by any sub-class
+        self.state_set
+        self.terminal_state_set
+        self.transition_matrix
+        self.reward_mapping
+        self.discount_factor
+
         raise NotImplementedError
 
 
@@ -93,10 +101,10 @@ class MarkovRewardProcess(MarkovProcess):
         """
 
         assert current_state in self.state_set, \
-            "Given state is not in state set"
+            "Given state ({}) is not in state set".format(current_state)
 
         assert current_state in self.reward_mapping, \
-            "Given state is not in reward mapping"
+            "Given state ({}) is not in reward mapping".format(current_state)
 
         return self.reward_mapping[current_state]
 
@@ -107,7 +115,7 @@ class MarkovRewardProcess(MarkovProcess):
         """
 
         assert current_state in self.state_set, \
-            "Given state is not in state set"
+            "Given state ({}) is not in state set".format(current_state)
 
         value = 0
         for i in range(num_rollouts):
@@ -123,7 +131,7 @@ class MarkovRewardProcess(MarkovProcess):
         """
 
         assert current_state in self.state_set, \
-            "Given state is not in state set"
+            "Given state ({}) is not in state set".format(current_state)
 
         # Perform rollout
         history = self.rollout(current_state, max_length=max_length)
@@ -174,7 +182,7 @@ class MarkovRewardProcess(MarkovProcess):
         """
 
         assert current_state in self.state_set, \
-            "Given state is not in state set"
+            "Given state ({}) is not in state set".format(current_state)
 
         curr = (None, current_state)
 
@@ -206,19 +214,28 @@ class MarkovRewardProcess(MarkovProcess):
         """
 
         assert current_state in self.state_set, \
-            "Given state is not in state set"
+            "Given state ({}) is not in state set".format(current_state)
 
         reward = self.get_expected_reward(current_state)
         new_state = super().transition(current_state)
         return (reward, new_state)
 
 
-    def decompose(self, policy):
+    def decompose(self):
         """
         Decomposes this MRP to a Markov Process by discarding the reward terms
-        See https://stackoverflow.com/a/18403354/885287 for technical method to
-        dynamically define a sub-class
-
-        TODO ajs 18/Feb/2018 implement this
         """
-        raise NotImplementedError
+
+        def mp_init(self, parent_mrp):
+            """
+            Decomposes a given MRP a simple MP
+            """
+            print("Initializing derived MP from MRP")
+
+            # Set MDP parameters
+            self.state_set = parent_mrp.state_set
+            self.terminal_state_set = parent_mrp.terminal_state_set
+            self.transition_matrix = parent_mrp.transition_matrix
+
+        dynamic_class_type = type("DerivedMarkovProcess", (MarkovProcess, ), {'__init__': mp_init})
+        return dynamic_class_type(self)
