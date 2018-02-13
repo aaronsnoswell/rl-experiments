@@ -6,6 +6,7 @@ lecture series, lecture 2
 import numpy as np
 
 from mdp import MarkovDecisionProcess
+from mdp import UniformRandomPolicy
 
 
 class Student(MarkovDecisionProcess):
@@ -20,7 +21,7 @@ class Student(MarkovDecisionProcess):
         """
 
         self.state_set, self.action_set, self.transition_matrix, \
-            self.terminal_state_set = MarkovDecisionProcess.from_dict(
+            self.possible_action_mapping, self.terminal_state_set = MarkovDecisionProcess.from_dict(
             {
                 "C1": {
                     "Study": {
@@ -80,5 +81,8 @@ class Student(MarkovDecisionProcess):
 
         self.discount_factor = 0.5
 
+
 aaron = Student()
 print(aaron)
+pol = UniformRandomPolicy(aaron)
+print(aaron.get_value_map(pol))

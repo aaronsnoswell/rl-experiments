@@ -38,19 +38,39 @@ class MarkovDecisionProcess(MarkovRewardProcess):
         )
 
 
+    def get_action_set(self):
+        """
+        Returns the set of all possible actions {a_i, ...}
+        """
+        return self.action_set
+
+
     def get_reward_mapping(self):
         """
-        Returns the reward mapping {s_i: r_i}
+        Returns the reward mapping {s_i: {a_i: r_i, ...}, ...}
         """
         return self.reward_mapping
 
 
+    def get_possible_action_mapping(self):
+        """
+        Returns a mapping indicating which actions are available
+        from each state
+        """
+        return self.possible_action_mapping
+
+
     def get_reward_vector(self):
         """
-        Returns the reward vector [r_i, ...] for every state s_i
-        in the ordered list state_set
+        Returns the reward vector [r_i, ...] for every state-action pair (s_i, a_i)
         """
-        raise NotImplementedError
+        reward_vector = np.array([])
+        for state in self.state_set:
+            for action in self.action_set:
+                reward_vector = np.append(reward_vector, self.get_expected_reward(state, action))
+
+        return reward_vector
+
 
 
     def solve_bellman_equation(self, policy):
@@ -62,56 +82,162 @@ class MarkovDecisionProcess(MarkovRewardProcess):
         raise NotImplementedError
 
 
-    def get_expected_reward(self, current_state):
+    def get_expected_reward(self, current_state, action):
         """
         Returns the expected reward at time t+1 given we are currently in the given state s_t
+        and take action a_t
         """
-        raise NotImplementedError
+
+        assert current_state in self.state_set, \
+            "Given state is not in state set"
+
+        assert current_state in self.reward_mapping, \
+            "Given state is not in reward mapping"
+
+        return self.reward_mapping[current_state].get(action, None)
 
 
     def get_value(self, current_state, policy, *, num_rollouts=1000, max_length=None):
         """
         Computes an expectation of return up to horizon max_length from the current state
         """
-        raise NotImplementedError
+
+        assert current_state in self.state_set, \
+            "Given state is not in state set"
+
+        value = 0
+        for i in range(num_rollouts):
+            value += self.get_return(current_state, policy, max_length=max_length)
+        value /= num_rollouts
+
+        return value
 
 
     def get_return(self, current_state, policy, *, max_length=None):
         """
         Rolls out the MRP once from the given state and calculates the return
         """
-        raise NotImplementedError
 
+        assert current_state in self.state_set, \
+            "Given state is not in state set"
+
+        # Perform rollout
+        history = self.rollout(current_state, policy, max_length=max_length)
+        
+        # Slice record array to get rewards
+        rewards = history['reward']
+
+        # Remove None types (e.g. initial state has reward of None)
+        rewards = rewards[rewards != None]
+
+        # Apply discount factor
+        discounted_rewards = np.empty_like(rewards)
+        for i in range(len(rewards)):
+            reward = rewards[i]
+            discounted_rewards[i] = reward * self.discount_factor ** i
+
+        return np.sum(discounted_rewards)
 
 
     def get_value_map(self, policy, *, num_rollouts=1000, max_length=None):
         """
         Performs many rollouts to compute an estimate of the value function
         """
-        raise NotImplementedError
+
+        print(
+            "Computing value function with {} rollouts, discount {} and max length {}".format(
+                num_rollouts,
+                self.discount_factor,
+                max_length
+            )
+        )
+        print("(this may take a while...)")
+
+        self.value_map = {}
+        for state in self.state_set:
+            self.value_map[state] = self.get_value(
+                state,
+                policy,
+                num_rollouts=num_rollouts,
+                max_length=max_length
+            )
+
+        return self.value_map
 
 
     def rollout(self, current_state, policy, *, max_length=None):
         """
-        Returns a single rollout of the process [S, S', S'', ..., S_terminal]
+        Returns a single rollout of the process [(A, R, S), (A', R', S'), ..., (A_terminal, R_terminal, S_terminal)]
         """
-        raise NotImplementedError
 
+        assert current_state in self.state_set, \
+            "Given state is not in state set"
+
+        curr = (None, None, current_state)
+
+        history = np.array(
+            [curr],
+            dtype=[
+                ('action', np.array(self.action_set).dtype),
+                ('reward', np.array(list(self.reward_mapping.values())[0].values()).dtype),
+                ('state', np.array(self.state_set).dtype)
+            ]
+        )
+
+        while curr[2] not in self.terminal_state_set:
+
+            state = curr[2]
+
+            if max_length is not None:
+                if len(history) >= max_length: break
+
+            # Choose an action from the policy
+            action = policy.get_action(self, state)
+
+            # Transition
+            curr = self.transition(state, action)
+
+            # Update history
+            history = np.append(
+                history,
+                np.array([curr], dtype=history.dtype)
+            )
+
+        return history
 
 
     def transition(self, current_state, action):
         """
-        Returns the reward for being in the current state, and a subsequent state
+        Returns the current action, a reward for taking the given action from the
+        current state, and a subsequent state
+        NB: The subsequent state could be different to where the action leads if
+        the environment intervenes
         """
-        raise NotImplementedError
+
+        assert current_state in self.state_set, \
+            "Given state is not in state set"
+
+        reward = self.get_expected_reward(current_state, action)
+        state_index = np.where(self.state_set == current_state)[0][0]
+        action_index = np.where(self.action_set == action)[0][0]
+
+        new_state = np.random.choice(
+            self.state_set,
+            p=self.transition_matrix[state_index * len(self.action_set) + action_index, :]
+        )
+
+        return (action, reward, new_state)
+
+
 
 
     @staticmethod
     def from_dict(markov_decision_process_dict):
         """
-        Converts a dictionary {s: a: {s': p_s', ...}, ...}, ...} to
+        Converts a dictionary {s: {a: {s': p_s', ...}, ...}, ...} to
         a set of states [s, s', ...], a set of actions [a, ...], 
-        a state transition matrix, and a set of terminal states [s_t, ...]
+        a state-action to state transition matrix, a mapping from states to possible actions
+        {s: [a1, a2], ...} and a set of terminal states [s_t, ...]
         """
 
         # Build state and action sets
@@ -174,8 +300,17 @@ class MarkovDecisionProcess(MarkovRewardProcess):
                         continue
 
                     probability = markov_decision_process_dict[state][action][subsequent_state]
-                    print(state, action, subsequent_state, probability, "({},{})".format(i*len(action_set) + a, j))
                     transition_matrix[i*len(action_set) + a, j] = probability
 
+        # Build set of possible action mappings
+        possible_action_mapping = {}
+        for state in state_set:
 
-        return state_set, action_set, transition_matrix, terminal_state_set
+            possible_action_mapping[state] = []
+            if state not in markov_decision_process_dict: continue
+
+            for action in markov_decision_process_dict[state]:
+                possible_action_mapping[state].append(action)
+
+
+        return state_set, action_set, transition_matrix, possible_action_mapping, terminal_state_set
