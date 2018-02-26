@@ -217,25 +217,28 @@ class GridWorld(MarkovDecisionProcess):
 
                 state = GridWorld.GridWorldState(x, y, s)
 
+                # Initialize possible action mapping
+                possible_action_mapping[state] = []
+
                 # Add to state sets
                 state_set.append(state)
                 if state_is_terminal(state.data):
                     terminal_state_set.append(state)
+                else:
+                    # If a state isn't terminal, add all actions as possibliities
+                    possible_action_mapping[state] = action_set[:]
 
-                # All actions are possible at all times in gridworld
-                possible_action_mapping[state] = action_set[:]
-
-                # Unless we disallow moving past the boundary
-                if boundary_result == "disallow":
-                    if x == 0:
-                        possible_action_mapping[state].remove('W')
-                    elif x == width-1:
-                        possible_action_mapping[state].remove('E')
-                    
-                    if y == 0:
-                        possible_action_mapping[state].remove('N')
-                    elif y == height-1:
-                        possible_action_mapping[state].remove('S')
+                    # Check for boundary disallow result
+                    if boundary_result == "disallow":
+                        if x == 0:
+                            possible_action_mapping[state].remove('W')
+                        elif x == width-1:
+                            possible_action_mapping[state].remove('E')
+                        
+                        if y == 0:
+                            possible_action_mapping[state].remove('N')
+                        elif y == height-1:
+                            possible_action_mapping[state].remove('S')
 
                 # Create reward mapping
                 reward_mapping[state] = {}
