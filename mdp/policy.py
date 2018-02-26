@@ -3,6 +3,7 @@ Defines an interface for a Markov Decision Process policy
 """
 
 import numpy as np
+import math
 
 
 class Policy():
@@ -14,6 +15,11 @@ class Policy():
         """
         Constructor
         """
+
+        # A list of parameters that should be set by any sub-class
+        self.mdp_type
+        self.policy_mapping
+
         raise NotImplementedError
 
 
@@ -84,3 +90,74 @@ class UniformRandomPolicy(Policy):
         return "<UniformRandomPolicy initialized on {} MarkovDecisionProcess>".format(
             self.mdp_type
         )
+
+
+def iterative_policy_evaluation(mdp, policy, *, max_iterations=math.inf):
+    """
+    Performs Iterative Policy Evaluation to determine a value function
+    under the given policy
+    """
+
+    # Initialize the value function
+    v = {}
+    for state in mdp.state_set:
+        v[state] = 0
+
+    k = 0
+    while True:
+
+        # Initialize the temporary value function v_{k+1}
+        v_new = {}
+        for state in mdp.state_set:
+            v_new[state] = v[state]
+
+        for state in mdp.state_set:
+
+            new_value = 0
+
+            for action in policy.policy_mapping[state]:
+
+                # Look up index of action
+                action_index = np.where(mdp.action_set == action)[0][0]
+
+                action_probability = policy.policy_mapping[state][action]
+                reward_value = mdp.reward_mapping.get(state, {}).get(action, 0)
+
+                next_state_expectation = 0
+                for next_state in mdp.state_set:
+
+                    # Look up index of state
+                    next_state_index = np.where(mdp.state_set == next_state)[0][0]
+                    
+                    # Get probability of transitioning to that state under s, a
+                    transition_prob = mdp.transition_matrix[next_state_index * len(mdp.action_set) + action_index]
+
+                    # Get current estimate of value for that state
+                    next_state_expectation += transition_prob * v.get(next_state, 0)
+
+                # Discount the expectation
+                next_state_expectation *= mdp.discount_factor
+
+                # Sum with current sate reward
+                new_value += action_probability * (reward_value + next_state_expectation)
+
+            # Store new value estimate for this state
+            v_new[state] = new_value
+
+        # Update the value function
+        v = v_new
+        k += 1
+
+        # Check termination condition
+        if k == max_iterations: break
+
+    return v
+
+
+
+
+            
+
+
+
+
