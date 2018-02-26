@@ -108,6 +108,30 @@ class GridWorld(MarkovDecisionProcess):
 
 
     @staticmethod
+    def dict_as_grid(the_dict):
+        """
+        Helper method to convert a dict of GridWorldState to a grid
+        """
+
+        # Determine bounds
+        width = 0
+        height = 0
+        for gws in the_dict:
+            if gws.x+1 > width: width = gws.x+1
+            if gws.y+1 > height: height = gws.y+1
+
+        # Initialize grid
+        grid = [[None for x in range(width)] for y in range(height)]
+
+        # Store elements in grid
+        for gws in the_dict:
+            grid[gws.y][gws.x] = the_dict[gws]
+
+        return np.array(grid)
+
+
+
+    @staticmethod
     def from_array(
         gridworld_array,
         state_is_terminal,
