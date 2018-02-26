@@ -247,9 +247,9 @@ class GridWorld(MarkovDecisionProcess):
 
 
         return GridWorld(
-            state_set,
-            terminal_state_set,
-            action_set,
+            np.array(state_set),
+            np.array(terminal_state_set),
+            np.array(action_set),
             transition_matrix,
             reward_mapping,
             possible_action_mapping,
