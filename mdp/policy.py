@@ -92,7 +92,14 @@ class UniformRandomPolicy(Policy):
         )
 
 
-def iterative_policy_evaluation(mdp, policy, *, initial_value_function=None, max_iterations=math.inf):
+def iterative_policy_evaluation(
+    mdp,
+    policy,
+    *,
+    initial_value_function=None,
+    max_iterations=math.inf,
+    on_iteration=None
+    ):
     """
     Performs Iterative Policy Evaluation to determine a value function
     under the given policy
@@ -152,6 +159,9 @@ def iterative_policy_evaluation(mdp, policy, *, initial_value_function=None, max
         # Update the value function
         v = v_new
         k += 1
+        
+        if on_iteration is not None:
+            on_iteration(k, v)
 
         # Check termination condition
         if k == max_iterations: break
