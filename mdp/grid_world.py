@@ -97,6 +97,9 @@ class GridWorld(MarkovDecisionProcess):
         possible_action_mapping,
         discount_factor
         ):
+        """
+        Constructor
+        """
 
         self.state_set = state_set
         self.terminal_state_set = terminal_state_set
