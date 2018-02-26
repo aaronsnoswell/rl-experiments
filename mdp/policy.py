@@ -52,6 +52,16 @@ class Policy():
         return np.random.choice(mdp.get_action_set(), p=action_weights)
 
 
+    def __str__(self):
+        """
+        Get string representation
+        """
+        return "<{} initialized on {} MarkovDecisionProcess>".format(
+            type(self).__name__,
+            self.mdp_type
+        )
+
+
 class UniformRandomPolicy(Policy):
     """
     Implements a uniform random distribution over possible actions
@@ -83,13 +93,49 @@ class UniformRandomPolicy(Policy):
                 self.policy_mapping[state][action] = 1.0 / len(possible_actions)
 
 
-    def __str__(self):
+class GreedyPolicy(Policy):
+    """
+    Implements a greedy policy - goes for the highest value function estimate
+    at each state
+    """
+
+
+    def __init__(self, mdp, value_function):
         """
-        Get string representation
+        Constructor
         """
-        return "<UniformRandomPolicy initialized on {} MarkovDecisionProcess>".format(
-            self.mdp_type
-        )
+
+        # Store reference to MDP type
+        self.mdp_type = type(mdp)
+
+        self.policy_mapping = {}
+        
+        for state in mdp.get_state_set():
+
+            self.policy_mapping[state] = {}
+
+            # Initialize all actions to 0 preference
+            for action in mdp.get_action_set():
+                self.policy_mapping[state][action] = 0
+
+            # Find the set of best possible actions
+            best_actions = []
+            best_action_value = -math.inf
+            possible_actions = mdp.get_possible_action_mapping()[state]
+            for action in possible_actions:
+                _, _, new_state = mdp.transition(state, action)
+                # Find the value function estimate for the possible new state
+                new_state_value = value_function[new_state]
+
+                if new_state_value > best_action_value:
+                    best_actions = [action]
+                    best_action_value = new_state_value
+                elif math.isclose(new_state_value, best_action_value):
+                    best_actions.append(action)
+
+            # Assign transition preferences
+            for best_action in best_actions:
+                self.policy_mapping[state][best_action] = 1 / len(best_actions)
 
 
 def iterative_policy_evaluation(
