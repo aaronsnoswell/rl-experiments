@@ -118,6 +118,8 @@ def iterative_policy_evaluation(mdp, policy, *, initial_value_function=None, max
 
             new_value = 0
 
+            state_index = np.where(mdp.state_set == state)[0][0]
+
             for action in policy.policy_mapping[state]:
 
                 # Look up index of action
@@ -133,7 +135,7 @@ def iterative_policy_evaluation(mdp, policy, *, initial_value_function=None, max
                     next_state_index = np.where(mdp.state_set == next_state)[0][0]
                     
                     # Get probability of transitioning to that state under s, a
-                    transition_prob = mdp.transition_matrix[next_state_index * len(mdp.action_set) + action_index]
+                    transition_prob = mdp.transition_matrix[state_index * len(mdp.action_set) + action_index][next_state_index]
 
                     # Get current estimate of value for that state
                     next_state_expectation += transition_prob * v.get(next_state, 0)
