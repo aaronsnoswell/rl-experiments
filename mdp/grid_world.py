@@ -157,8 +157,7 @@ class GridWorld(MarkovDecisionProcess):
         @param boundary_result (Optional) Result of trying to move past the
                boundary. One of "nothing" or "wrap" or "disallow"
         @param discount_factor (Optional) Discount factor
-        @param timestep_reward (Optional) Reward per timestep unless
-               terminating
+        @param timestep_reward (Optional) Reward per timestep
         @param terminal_reward (Optional) Reward upon terminating
         @param wind_prob       (Optional) Probability that the 'wind' will
                take you to a random state regardless of your action
@@ -268,10 +267,10 @@ class GridWorld(MarkovDecisionProcess):
                         transition_matrix[state_index * len(action_set) + action_index][xy_to_index(wx, wy)] += wind_prob / len(action_set)
 
                     # Update reward mapping
+                    reward_mapping[state][action] = 0
+                    reward_mapping[state][action] += timestep_reward
                     if(state_is_terminal(gridworld_array[ty][tx])):
-                        reward_mapping[state][action] = terminal_reward
-                    else:
-                        reward_mapping[state][action] = timestep_reward
+                        reward_mapping[state][action] += terminal_reward
 
                 state_index += 1
 
