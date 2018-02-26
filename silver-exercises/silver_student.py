@@ -5,8 +5,12 @@ lecture series, lecture 2
 
 import numpy as np
 
+# Get the MDP directory in our path
+import os, sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from mdp import MarkovDecisionProcess
-from mdp import UniformRandomPolicy
+from mdp import UniformRandomPolicy, iterative_policy_evaluation
 
 
 class Student(MarkovDecisionProcess):
@@ -95,6 +99,10 @@ def main():
     # And create a policy for them
     not_great_studier = UniformRandomPolicy(jane)
 
+    v_pi = iterative_policy_evaluation(jane, not_great_studier, max_iterations=100)
+    print(v_pi)
+
+    """
     # Test value map estimation under the policy
     print(jane.get_value_map(not_great_studier))
 
@@ -112,7 +120,7 @@ def main():
     # And just for fun, compute the stationary distribution of the MP
     print(jane_meaningless_zombie.compute_stationary_distribution())
     # ... turns out Jane spends around 27% of her time on Facebook
-
+    """
 
 if __name__ == "__main__":
     main()
