@@ -422,6 +422,8 @@ class MarkovDecisionProcess(MarkovRewardProcess):
             possible_action_mapping[state] = []
             if state not in markov_decision_process_dict: continue
 
+            if state in terminal_state_set: continue
+
             for action in markov_decision_process_dict[state]:
                 possible_action_mapping[state].append(action)
 
