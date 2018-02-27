@@ -114,11 +114,19 @@ class GridWorld(MarkovDecisionProcess):
         title=None,
         subtitle=None,
         value_function=None,
-        policy=None
+        policy=None,
+        show_value_text=True
         ):
         """
         Renders a GridWorld, with an optional policy and value function
         """
+
+        # Render settings
+        line_width = 0.75
+        line_color = "#dddddd"
+        terminal_state_border_color = "#0000ff"
+        policy_color = "#ff0000"
+        textcolor = "#00ff00"
 
 
         def draw_policy_for_state(ax, policy, state, color):
@@ -196,14 +204,32 @@ class GridWorld(MarkovDecisionProcess):
                 draw_arrow(ax, state.x, state.y, action, color)
 
 
+        def draw_value_text(x, y, value):
+            """
+            Helper function to plot the value of a state in text form
+            """
+            render_pos = (
+                x + 0.5,
+                self.height - (y + 1) + 0.5
+            )
+
+            # Draw state value as text
+            plt.text(
+                render_pos[0],
+                render_pos[1],
+                "{: .2f}".format(value),
+                horizontalalignment="center",
+                verticalalignment="center",
+                family="serif",
+                size=13,
+                color=textcolor
+            )
+
+
         # Helper lambda to invert a color
         invert_color = lambda arr: [1 - c for c in arr]
-
-        line_width = 0.75
-        line_color = "#dddddd"
-        terminal_state_border_color = "#0000ff"
-        policy_color = "#ff0000"
         
+        # Compute value scaling variables
         max_value = 1
         min_value = 0
         if value_function is not None:
@@ -212,26 +238,26 @@ class GridWorld(MarkovDecisionProcess):
                 v = value_function[state]
                 if v > max_value: max_value = v
                 if v < min_value: min_value = v
-        else:
-            # Construct a neutral looking value function
-            value_function = {}
-            for state in self.state_set:
-                value_function[state] = max_value/2
 
         value_range = max_value - min_value
         value_to_color = lambda v: [(v - min_value) / value_range] * 3
 
+        # Prepare figure
         fig = plt.figure()
         ax = plt.gca()
 
         # Terminal states are drawn before other states
         for state in self.terminal_state_set:
 
+            value = max_value/2
+            if value_function is not None:
+                value = value_function[state]
+
             render_pos = (
                 state.x,
                 self.height - (state.y + 1)
             )
-            render_color = value_to_color(value_function[state])
+            render_color = value_to_color(value)
 
             ax.add_artist(plt.Rectangle(
                     render_pos,
@@ -242,6 +268,9 @@ class GridWorld(MarkovDecisionProcess):
                     linewidth=10,
                 )
             )
+
+            if value_function is not None and show_value_text:
+                draw_value_text(state.x, state.y, value_function[state])
 
             # Draw the state policy
             if policy is not None:
@@ -259,13 +288,17 @@ class GridWorld(MarkovDecisionProcess):
                 # Get state
                 state = self.state_set[self.xy_to_index(xi, yi)]
 
+                value = max_value/2
+                if value_function is not None:
+                    value = value_function[state]
+
                 # pyplot is y-up, our internal representation is y-down
                 # Therefore flip y axis
                 render_pos = (
                     xi,
                     self.height - (yi + 1)
                 )
-                render_color = value_to_color(value_function[state])
+                render_color = value_to_color(value)
 
                 if state not in self.terminal_state_set:
                     ax.add_artist(plt.Rectangle(
@@ -275,6 +308,9 @@ class GridWorld(MarkovDecisionProcess):
                             color=render_color
                         )
                     )
+
+                    if value_function is not None and show_value_text:
+                        draw_value_text(state.x, state.y, value_function[state])
 
                     # Draw the state policy
                     if policy is not None:

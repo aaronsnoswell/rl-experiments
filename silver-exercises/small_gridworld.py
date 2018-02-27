@@ -40,7 +40,7 @@ def main():
     v0 = uniform_value_estimation(small_gw)
 
     # Apply policy iteration
-    vstar, pistar = policy_iteration(small_gw, v0, pi0)
+    vstar, pistar = policy_iteration(small_gw, v0, pi0, max_iterations=100)
 
     small_gw.generate_figure(
         value_function=vstar,
