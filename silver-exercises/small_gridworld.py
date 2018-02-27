@@ -10,7 +10,7 @@ import os, sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from mdp import GridWorld
-from mdp import UniformRandomPolicy, GreedyPolicy, iterative_policy_evaluation
+from mdp import UniformRandomPolicy, uniform_value_estimation, evaluate_policy, policy_iteration
 
 
 def main():
@@ -74,32 +74,19 @@ def main():
 
         return disp_pol
 
+    # Prepare initial estimates
+    pi0 = UniformRandomPolicy(small_gw)
+    v0 = uniform_value_estimation(small_gw)
 
-    def on_iteration(k, v):
-        gp = GreedyPolicy(small_gw, v)
+    # Apply policy iteration
+    vstar, pistar = policy_iteration(small_gw, v0, pi0)
 
-        print(k)
-        print(GridWorld.dict_as_grid(v))
-        print(GridWorld.dict_as_grid(printable_policy(gp.policy_mapping)))
-        
-        input("Press any key to continue")
-    
-
-    meh_policy = UniformRandomPolicy(small_gw)
-    v_pi = iterative_policy_evaluation(
-        small_gw,
-        meh_policy,
-        max_iterations=100,
-        #on_iteration=on_iteration
-    )
-    print(GridWorld.dict_as_grid(v_pi))
+    # Show result
+    print(GridWorld.dict_as_grid(vstar))
     print(
         GridWorld.dict_as_grid(
             printable_policy(
-                GreedyPolicy(
-                    small_gw,
-                    v_pi
-                ).policy_mapping
+                pistar.policy_mapping
             )
         )
     )

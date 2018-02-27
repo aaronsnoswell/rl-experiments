@@ -138,6 +138,64 @@ class GreedyPolicy(Policy):
                 self.policy_mapping[state][best_action] = 1 / len(best_actions)
 
 
+def uniform_value_estimation(mdp, value=0):
+    """
+    Computes a uniform value function estimate using the given value
+    """
+    value_function = {}
+    for state in mdp.state_set:
+        value_function[state] = value
+    return value_function
+
+
+def evaluate_policy(mdp, policy, *, initial_value_function=None):
+    """
+    Evaluates a policy once to get a new value function estimate
+    """
+
+    # Initialize the value function
+    if initial_value_function is None:
+        initial_value_function = uniform_value_estimate(mdp)
+    value_function = initial_value_function
+
+    for state in mdp.state_set:
+
+        new_value = 0
+
+        state_index = np.where(mdp.state_set == state)[0][0]
+
+        for action in policy.policy_mapping[state]:
+
+            # Look up index of action
+            action_index = np.where(mdp.action_set == action)[0][0]
+
+            action_probability = policy.policy_mapping[state][action]
+            reward_value = mdp.reward_mapping.get(state, {}).get(action, 0)
+
+            next_state_expectation = 0
+            for next_state in mdp.state_set:
+
+                # Look up index of state
+                next_state_index = np.where(mdp.state_set == next_state)[0][0]
+                
+                # Get probability of transitioning to that state under s, a
+                transition_prob = mdp.transition_matrix[state_index * len(mdp.action_set) + action_index][next_state_index]
+
+                # Get current estimate of value for that state
+                next_state_expectation += transition_prob * initial_value_function.get(next_state, 0)
+
+            # Discount the expectation
+            next_state_expectation *= mdp.discount_factor
+
+            # Sum with current sate reward
+            new_value += action_probability * (reward_value + next_state_expectation)
+
+        # Store new value estimate for this state
+        value_function[state] = new_value
+
+    return value_function
+
+
 def iterative_policy_evaluation(
     mdp,
     policy,
@@ -152,73 +210,52 @@ def iterative_policy_evaluation(
     """
 
     # Initialize the value function
-    v = {}
-    for state in mdp.state_set:
-        v[state] = 0
-    
-    if initial_value_function is not None:
-        v = initial_value_function
+    if initial_value_function is None:
+        initial_value_function = uniform_value_estimate(mdp)
+    value_function = initial_value_function
 
     k = 0
     while True:
 
-        # Initialize the temporary value function v_{k+1}
-        v_new = {}
-        for state in mdp.state_set:
-            v_new[state] = v[state]
-
-        for state in mdp.state_set:
-
-            new_value = 0
-
-            state_index = np.where(mdp.state_set == state)[0][0]
-
-            for action in policy.policy_mapping[state]:
-
-                # Look up index of action
-                action_index = np.where(mdp.action_set == action)[0][0]
-
-                action_probability = policy.policy_mapping[state][action]
-                reward_value = mdp.reward_mapping.get(state, {}).get(action, 0)
-
-                next_state_expectation = 0
-                for next_state in mdp.state_set:
-
-                    # Look up index of state
-                    next_state_index = np.where(mdp.state_set == next_state)[0][0]
-                    
-                    # Get probability of transitioning to that state under s, a
-                    transition_prob = mdp.transition_matrix[state_index * len(mdp.action_set) + action_index][next_state_index]
-
-                    # Get current estimate of value for that state
-                    next_state_expectation += transition_prob * v.get(next_state, 0)
-
-                # Discount the expectation
-                next_state_expectation *= mdp.discount_factor
-
-                # Sum with current sate reward
-                new_value += action_probability * (reward_value + next_state_expectation)
-
-            # Store new value estimate for this state
-            v_new[state] = new_value
-
         # Update the value function
-        v = v_new
+        value_function = evaluate_policy(
+            mdp,
+            policy,
+            initial_value_function=value_function
+        )
         k += 1
         
         if on_iteration is not None:
-            on_iteration(k, v)
+            on_iteration(k, value_function)
 
         # Check termination condition
         if k == max_iterations: break
 
-    return v
+    return value_function
 
 
+def policy_iteration(mdp, value_function, policy, *, max_iterations=100):
+    """
+    Performs policy iteration to find V*, pi*
+    """
 
+    k = 0
+    while True:
 
-            
+        # Do policy evaluation
+        value_function = evaluate_policy(
+            mdp,
+            policy,
+            initial_value_function=value_function
+        )
 
+        # Do greedy policy improvement
+        policy = GreedyPolicy(mdp, value_function)
 
+        # Check convergence criteria
+        if k >= max_iterations:
+            break
 
+        k += 1
 
+    return value_function, policy

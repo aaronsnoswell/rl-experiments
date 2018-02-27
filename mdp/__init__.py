@@ -2,7 +2,9 @@
 from .markov_process import MarkovProcess
 from .markov_reward_process import MarkovRewardProcess
 from .markov_decision_process import MarkovDecisionProcess
-from .policy import Policy, UniformRandomPolicy, GreedyPolicy, iterative_policy_evaluation
+from .policy import Policy, UniformRandomPolicy, GreedyPolicy,\
+    uniform_value_estimation, evaluate_policy, iterative_policy_evaluation,\
+    policy_iteration
 from .grid_world import GridWorld
 
 __all__ = [
@@ -12,6 +14,9 @@ __all__ = [
     "Policy",
     "UniformRandomPolicy",
     "GreedyPolicy",
+    "uniform_value_estimation",
+    "evaluate_policy",
     "iterative_policy_evaluation",
+    "policy_iteration",
     "GridWorld"
 ]
