@@ -120,8 +120,89 @@ class GridWorld(MarkovDecisionProcess):
         Renders a GridWorld, with an optional policy and value function
         """
 
+
+        def draw_policy_for_state(ax, policy, state, color):
+            """
+            Helper function to draw a policy for a given state
+            """
+
+            def draw_arrow(ax, x, y, dir, color):
+                """
+                Helper function to draw an arrow
+                """
+
+                # Helper to conver to image y coordinates
+                to_image_x = lambda xin: xin + 0.5
+                to_image_y = lambda yin: self.height - (yin + 1) + 0.5
+
+                # Render parameters
+                head_width = 0.05
+                head_length = 0.1
+                length = 0.4 - head_length
+
+                # Get start position
+                start_x = to_image_x(x)
+                start_y = to_image_y(y)
+
+                # Compute length based on direction
+                length_x = 0
+                length_y = 0
+                if dir == "N":
+                    length_y = length
+                elif dir == "NE":
+                    length_x = length_y = length
+                    length_x /= 1.4
+                    length_y /= 1.4
+                elif dir == "E":
+                    length_x = length
+                elif dir == "SE":
+                    length_x = length
+                    length_y = -length
+                    length_x /= 1.4
+                    length_y /= 1.4
+                elif dir == "S":
+                    length_y = -length
+                elif dir == "SW":
+                    length_x = length_y = -length
+                    length_x /= 1.4
+                    length_y /= 1.4
+                elif dir == "W":
+                    length_x = -length
+                if dir == "NW":
+                    length_x = -length
+                    length_y = length
+                    length_x /= 1.4
+                    length_y /= 1.4
+
+                ax.arrow(
+                    start_x,
+                    start_y,
+                    length_x,
+                    length_y,
+                    head_width=head_width,
+                    head_length=head_length,
+                    facecolor=color,
+                    edgecolor=color
+                )
+
+            # Get the policy for this state
+            sp = policy.policy_mapping[state]
+
+            # Look up which actions we need to draw
+            action_bv = np.array(list(sp.values())) != 0
+            actions_to_draw = self.action_set[action_bv]
+
+            for action in actions_to_draw:
+                draw_arrow(ax, state.x, state.y, action, color)
+
+
+        # Helper lambda to invert a color
+        invert_color = lambda arr: [1 - c for c in arr]
+
         line_width = 0.75
         line_color = "#dddddd"
+        terminal_state_border_color = "#0000ff"
+        policy_color = "#ff0000"
         
         max_value = 1
         min_value = 0
@@ -136,6 +217,7 @@ class GridWorld(MarkovDecisionProcess):
             value_function = {}
             for state in self.state_set:
                 value_function[state] = max_value/2
+
         value_range = max_value - min_value
         value_to_color = lambda v: [(v - min_value) / value_range] * 3
 
@@ -149,16 +231,27 @@ class GridWorld(MarkovDecisionProcess):
                 state.x,
                 self.height - (state.y + 1)
             )
+            render_color = value_to_color(value_function[state])
 
             ax.add_artist(plt.Rectangle(
                     render_pos,
                     width=1,
                     height=1,
-                    facecolor=value_to_color(value_function[state]),
-                    edgecolor="#0000ff",
+                    facecolor=render_color,
+                    edgecolor=terminal_state_border_color,
                     linewidth=10,
                 )
             )
+
+            # Draw the state policy
+            if policy is not None:
+                draw_policy_for_state(
+                    ax,
+                    policy,
+                    state,
+                    policy_color
+                )
+
 
         for yi in range(self.height):
             for xi in range(self.width):
@@ -172,15 +265,26 @@ class GridWorld(MarkovDecisionProcess):
                     xi,
                     self.height - (yi + 1)
                 )
+                render_color = value_to_color(value_function[state])
 
                 if state not in self.terminal_state_set:
                     ax.add_artist(plt.Rectangle(
                             render_pos,
                             width=1,
                             height=1,
-                            color=value_to_color(value_function[state])
+                            color=render_color
                         )
                     )
+
+                    # Draw the state policy
+                    if policy is not None:
+                        draw_policy_for_state(
+                            ax,
+                            policy,
+                            state,
+                            policy_color
+                        )
+
 
 
         # Draw horizontal grid lines
