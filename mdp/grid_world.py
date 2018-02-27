@@ -1,17 +1,8 @@
 
 import numpy as np
-from contextlib import contextmanager
+import matplotlib.pyplot as plt
 
 from .markov_decision_process import MarkovDecisionProcess
-
-
-@contextmanager
-def show_complete_array():
-    oldoptions = np.get_printoptions()
-    np.set_printoptions(threshold=np.inf)
-    yield
-    np.set_printoptions(**oldoptions)
-
 
 
 class GridWorld(MarkovDecisionProcess):
@@ -108,6 +99,141 @@ class GridWorld(MarkovDecisionProcess):
         self.reward_mapping = reward_mapping
         self.possible_action_mapping = possible_action_mapping
         self.discount_factor = discount_factor
+
+        # Determine grid world bounds
+        self.width = 0
+        self.height = 0
+        for state in self.state_set:
+            if state.x+1 > self.width: self.width = state.x+1
+            if state.y+1 > self.height: self.height = state.y+1
+
+
+    def generate_figure(
+        self,
+        *,
+        title=None,
+        subtitle=None,
+        value_function=None,
+        policy=None
+        ):
+        """
+        Renders a GridWorld, with an optional policy and value function
+        """
+
+        line_width = 0.75
+        line_color = "#dddddd"
+        
+        max_value = 1
+        min_value = 0
+        if value_function is not None:
+            # Compute maxmium value so we can normalize
+            for state in value_function:
+                v = value_function[state]
+                if v > max_value: max_value = v
+                if v < min_value: min_value = v
+        else:
+            # Construct a neutral looking value function
+            value_function = {}
+            for state in self.state_set:
+                value_function[state] = max_value/2
+        value_range = max_value - min_value
+        value_to_color = lambda v: [(v - min_value) / value_range] * 3
+
+        fig = plt.figure()
+        ax = plt.gca()
+
+        # Terminal states are drawn before other states
+        for state in self.terminal_state_set:
+
+            render_pos = (
+                state.x,
+                self.height - (state.y + 1)
+            )
+
+            ax.add_artist(plt.Rectangle(
+                    render_pos,
+                    width=1,
+                    height=1,
+                    facecolor=value_to_color(value_function[state]),
+                    edgecolor="#0000ff",
+                    linewidth=10,
+                )
+            )
+
+        for yi in range(self.height):
+            for xi in range(self.width):
+
+                # Get state
+                state = self.state_set[self.xy_to_index(xi, yi)]
+
+                # pyplot is y-up, our internal representation is y-down
+                # Therefore flip y axis
+                render_pos = (
+                    xi,
+                    self.height - (yi + 1)
+                )
+
+                if state not in self.terminal_state_set:
+                    ax.add_artist(plt.Rectangle(
+                            render_pos,
+                            width=1,
+                            height=1,
+                            color=value_to_color(value_function[state])
+                        )
+                    )
+
+
+        # Draw horizontal grid lines
+        for i in range(self.height - 1):
+            ax.add_artist(plt.Line2D(
+                    (0, self.width),
+                    (i+1, i+1),
+                    color=line_color,
+                    linewidth=line_width
+                )
+            )
+
+        # Draw vetical grid lines
+        for i in range(self.width - 1):
+            ax.add_artist(plt.Line2D(
+                    (i+1, i+1),
+                    (0, self.height),
+                    color=line_color,
+                    linewidth=line_width
+                )
+            )      
+
+        ax.set_aspect("equal", adjustable="box")
+        plt.xlim([0, self.width])
+        plt.ylim([0, self.height])
+
+        ax.tick_params(length=0, labelbottom="off", labelleft="off")
+
+        # Add title and subtitle
+        plt.figtext(
+            0.5125,
+            0.925,
+            "{}".format(title if title is not None else "GridWorld"),
+            fontsize=14,
+            ha='center'
+        )
+        plt.figtext(
+            0.5125,
+            0.89,
+            "{}".format(subtitle if subtitle is not None else ""),
+            fontsize=10,
+            ha='center'
+        )
+        
+        # Figure is now ready for display or saving
+        return fig
+
+
+    def xy_to_index(self, x, y):
+        """
+        Helper method to convert a x, y 0-based indices to a linear 0-based index
+        """
+        return y * self.width + x
 
 
     @staticmethod
