@@ -4,6 +4,7 @@ lecture series, lecture 3, p11
 """
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 # Get the MDP directory in our path
 import os, sys
@@ -34,46 +35,6 @@ def main():
     )
     print(small_gw)
 
-
-    def printable_policy(pol):
-        """
-        Helper function to get a display-friendly version of a policy
-        """
-        disp_pol = {}
-        for key in pol:
-
-            # Compute binary action vector
-            action_bv = np.array(list(pol[key].values())) != 0
-
-            if np.all(action_bv == [0, 0, 0, 0]):
-                disp_pol[key] = ' ■'
-            elif np.all(action_bv == [1, 1, 1, 1]):
-                disp_pol[key] = ' +'
-            elif np.all(action_bv == [1, 0, 0, 0]):
-                disp_pol[key] = ' ↑'
-            elif np.all(action_bv == [0, 1, 0, 0]):
-                disp_pol[key] = ' →'
-            elif np.all(action_bv == [0, 0, 1, 0]):
-                disp_pol[key] = ' ↓'
-            elif np.all(action_bv == [0, 0, 0, 1]):
-                disp_pol[key] = ' ←'
-            elif np.all(action_bv == [1, 1, 0, 0]):
-                disp_pol[key] = '↑→'
-            elif np.all(action_bv == [1, 0, 1, 0]):
-                disp_pol[key] = ' ↕'
-            elif np.all(action_bv == [1, 0, 0, 1]):
-                disp_pol[key] = "↑←"
-            elif np.all(action_bv == [0, 1, 1, 0]):
-                disp_pol[key] = '↓→'
-            elif np.all(action_bv == [0, 1, 0, 1]):
-                disp_pol[key] = ' ↔'
-            elif np.all(action_bv == [0, 0, 1, 1]):
-                disp_pol[key] = '↓←'
-            else:
-                disp_pol[key] = '  '
-
-        return disp_pol
-
     # Prepare initial estimates
     pi0 = UniformRandomPolicy(small_gw)
     v0 = uniform_value_estimation(small_gw)
@@ -81,15 +42,13 @@ def main():
     # Apply policy iteration
     vstar, pistar = policy_iteration(small_gw, v0, pi0)
 
-    # Show result
-    print(GridWorld.dict_as_grid(vstar))
-    print(
-        GridWorld.dict_as_grid(
-            printable_policy(
-                pistar.policy_mapping
-            )
-        )
+    small_gw.generate_figure(
+        value_function=vstar,
+        policy=pistar,
+        title=r"Small GridWorld - $\pi*$ and $V*$",
+        subtitle="From David Silver's RL Lecture #3, p13"
     )
+    plt.show()
 
 
 
