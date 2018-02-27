@@ -2,6 +2,7 @@
 from enum import Enum
 from random import uniform
 
+
 """A class to simulate markovian weather"""
 class MarkovWeather:
 
