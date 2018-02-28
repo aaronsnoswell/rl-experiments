@@ -189,7 +189,8 @@ class GridWorld(MarkovDecisionProcess):
                     head_width=head_width,
                     head_length=head_length,
                     facecolor=color,
-                    edgecolor=color
+                    edgecolor=color,
+                    zorder=5
                 )
 
             # Get the policy for this state
