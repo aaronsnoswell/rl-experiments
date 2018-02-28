@@ -119,6 +119,9 @@ class GridWorld(MarkovDecisionProcess):
         ):
         """
         Renders a GridWorld, with an optional policy and value function
+        
+        Creates a new figure window if none exists, otherwise draws to the
+        current figure and axes
         """
 
         # Render settings
@@ -242,8 +245,7 @@ class GridWorld(MarkovDecisionProcess):
         value_range = max_value - min_value
         value_to_color = lambda v: [(v - min_value) / value_range] * 3
 
-        # Prepare figure
-        fig = plt.figure()
+        # Get the axes to draw to
         ax = plt.gca()
 
         # Terminal states are drawn before other states
@@ -366,7 +368,6 @@ class GridWorld(MarkovDecisionProcess):
         )
         
         # Figure is now ready for display or saving
-        return fig
 
 
     def xy_to_index(self, x, y):
