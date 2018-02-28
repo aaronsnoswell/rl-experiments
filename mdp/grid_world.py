@@ -126,7 +126,6 @@ class GridWorld(MarkovDecisionProcess):
         line_color = "#dddddd"
         terminal_state_border_color = "#0000ff"
         policy_color = "#ff0000"
-        textcolor = "#00ff00"
 
 
         def draw_policy_for_state(ax, policy, state, color):
@@ -204,7 +203,7 @@ class GridWorld(MarkovDecisionProcess):
                 draw_arrow(ax, state.x, state.y, action, color)
 
 
-        def draw_value_text(x, y, value):
+        def draw_value_text(x, y, value, textcolor):
             """
             Helper function to plot the value of a state in text form
             """
@@ -227,7 +226,7 @@ class GridWorld(MarkovDecisionProcess):
 
 
         # Helper lambda to invert a color
-        invert_color = lambda arr: [1 - c for c in arr]
+        high_contrast_color = lambda arr: [1 if c < 0.5 else 0 for c in arr]
         
         # Compute value scaling variables
         max_value = 1
@@ -270,7 +269,7 @@ class GridWorld(MarkovDecisionProcess):
             )
 
             if value_function is not None and show_value_text:
-                draw_value_text(state.x, state.y, value_function[state])
+                draw_value_text(state.x, state.y, value_function[state], high_contrast_color(render_color))
 
             # Draw the state policy
             if policy is not None:
@@ -310,7 +309,7 @@ class GridWorld(MarkovDecisionProcess):
                     )
 
                     if value_function is not None and show_value_text:
-                        draw_value_text(state.x, state.y, value_function[state])
+                        draw_value_text(state.x, state.y, value_function[state], high_contrast_color(render_color))
 
                     # Draw the state policy
                     if policy is not None:
