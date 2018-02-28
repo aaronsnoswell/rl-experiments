@@ -36,17 +36,67 @@ def main():
     print(small_gw)
 
     # Prepare initial estimates
-    pi0 = UniformRandomPolicy(small_gw)
-    v0 = uniform_value_estimation(small_gw)
+    policy = UniformRandomPolicy(small_gw)
+    value_function = uniform_value_estimation(small_gw)
+
+    # Prepare plotting variables
+    interim_figure_title = r"Small GridWorld with $\pi$ and $V$ for Policy Iteration k={}"
+    final_figure_title = r"Small GridWorld with $\pi*$ and $V*$ after Policy Iteration"
+    figure_subtitle = "From David Silver's RL Lecture #3, p13"
+
+
+    def draw_figure(value_function, policy, title, subtitle):
+        """
+        Helper function to draw the figure
+        """
+        plt.clf()
+        small_gw.generate_figure(
+            value_function=value_function,
+            policy=policy,
+            title=title,
+            subtitle=subtitle
+        )
+
+
+    iteration_delay = 0.00001
+    def on_iteration(k, value_function, policy):
+        """
+        Callback for each iteration
+        """
+        print("Iteration {}".format(k))
+        draw_figure(
+            value_function,
+            policy,
+            interim_figure_title.format(k),
+            figure_subtitle
+        )
+        plt.pause(iteration_delay)
+
+
+    # Draw initial figure
+    draw_figure(
+        value_function,
+        policy,
+        interim_figure_title.format(0),
+        figure_subtitle
+    )
+    plt.show(block=False)
 
     # Apply policy iteration
-    vstar, pistar = policy_iteration(small_gw, v0, pi0, max_iterations=100)
+    value_function, policy = policy_iteration(
+        small_gw,
+        value_function,
+        policy,
+        max_iterations=10,
+        on_iteration=on_iteration
+    )
+    print("Done")
 
-    small_gw.generate_figure(
-        value_function=vstar,
-        policy=pistar,
-        title=r"Small GridWorld - $\pi*$ and $V*$",
-        subtitle="From David Silver's RL Lecture #3, p13"
+    draw_figure(
+        value_function,
+        policy,
+        final_figure_title,
+        figure_subtitle
     )
     plt.show()
 
