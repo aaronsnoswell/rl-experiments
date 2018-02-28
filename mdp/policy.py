@@ -234,7 +234,14 @@ def iterative_policy_evaluation(
     return value_function
 
 
-def policy_iteration(mdp, value_function, policy, *, max_iterations=100):
+def policy_iteration(
+    mdp,
+    value_function,
+    policy,
+    *,
+    max_iterations=100,
+    on_iteration=None
+    ):
     """
     Performs policy iteration to find V*, pi*
     """
@@ -252,10 +259,13 @@ def policy_iteration(mdp, value_function, policy, *, max_iterations=100):
         # Do greedy policy improvement
         policy = GreedyPolicy(mdp, value_function)
 
+        k += 1
+
+        if on_iteration is not None:
+            on_iteration(k, value_function, policy)
+
         # Check convergence criteria
         if k >= max_iterations:
             break
-
-        k += 1
 
     return value_function, policy
