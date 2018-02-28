@@ -100,7 +100,7 @@ class GreedyPolicy(Policy):
     """
 
 
-    def __init__(self, mdp, value_function):
+    def __init__(self, mdp, value_function, epsillon=0.0001):
         """
         Constructor
         """
@@ -130,7 +130,7 @@ class GreedyPolicy(Policy):
                 if new_state_value > best_action_value:
                     best_actions = [action]
                     best_action_value = new_state_value
-                elif math.isclose(new_state_value, best_action_value):
+                elif math.isclose(new_state_value, best_action_value, abs_tol=epsillon):
                     best_actions.append(action)
 
             # Assign transition preferences
