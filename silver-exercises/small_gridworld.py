@@ -11,7 +11,7 @@ import os, sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from mdp import GridWorld
-from mdp import UniformRandomPolicy, uniform_value_estimation, evaluate_policy, policy_iteration
+from mdp import *
 
 
 def main():
@@ -71,6 +71,17 @@ def main():
             figure_subtitle
         )
         plt.pause(iteration_delay)
+        #input("Press any key to continue")
+        return True
+
+
+    def on_iteration_ipe(k, value_function):
+        """
+        An iteration callback for IPE
+        """
+        policy = GreedyPolicy(small_gw, value_function)
+        on_iteration(k, value_function, policy)
+        if k == 100: return True
 
 
     # Draw initial figure
@@ -82,6 +93,19 @@ def main():
     )
     plt.show(block=False)
 
+    # Apply IPE
+    value_function = iterative_policy_evaluation(
+        small_gw,
+        policy,
+        initial_value_function=value_function,
+        on_iteration=on_iteration_ipe
+    )
+    policy = GreedyPolicy(small_gw, value_function)
+
+
+    """
+    I DO NOT understand. IPE and PI run the exact same code to evaluate the
+    # policy at step 0 and get different value functions@!!!!?!?!?!!
     # Apply policy iteration
     value_function, policy = policy_iteration(
         small_gw,
@@ -90,8 +114,10 @@ def main():
         max_iterations=10,
         on_iteration=on_iteration
     )
-    print("Done")
+    """
 
+
+    print("Done")
     draw_figure(
         value_function,
         policy,
