@@ -223,10 +223,12 @@ def iterative_policy_evaluation(
             policy,
             initial_value_function=value_function
         )
+        
         k += 1
         
         if on_iteration is not None:
-            on_iteration(k, value_function)
+            if on_iteration(k, value_function) == True:
+                break
 
         # Check termination condition
         if k == max_iterations: break
@@ -239,7 +241,7 @@ def policy_iteration(
     value_function,
     policy,
     *,
-    max_iterations=100,
+    max_iterations=math.inf,
     on_iteration=None
     ):
     """
@@ -262,7 +264,9 @@ def policy_iteration(
         k += 1
 
         if on_iteration is not None:
-            on_iteration(k, value_function, policy)
+            if on_iteration(k, value_function, policy) == True:
+                # callback indicated convergence - exit
+                break
 
         # Check convergence criteria
         if k >= max_iterations:
