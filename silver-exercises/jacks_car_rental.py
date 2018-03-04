@@ -205,14 +205,26 @@ def main():
     Excercises the JacksCarRental() class
     """
 
-    print("Initializing Jacks Car Rentals MDP")
+    print("Initializing Jack's Car Rentals MDP")
     mdp = JacksCarRental()
+    v = uniform_value_estimation(mdp)
+    p = UniformRandomPolicy(mdp)
     print("Done initializing")
 
-    print("Constructing URP")
-    urp = UniformRandomPolicy(mdp)
-    print("Done constructing URP")
+    def on_iteration(k, v, p, v_new, p_new):
+        print("Iteration {}".format(k))
+        if k == 100: return True
+        return False
 
+    print("Applying policy iteration...")
+    vstar, pstar = policy_iteration(
+        mdp,
+        v,
+        p,
+        on_iteration=on_iteration
+    )
+
+    print("Done")
 
 
 if __name__ == "__main__":
