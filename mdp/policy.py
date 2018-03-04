@@ -300,7 +300,7 @@ def policy_iteration(
         )
 
         # Do greedy policy improvement
-        new_policy = GreedyPolicy(mdp, value_function)
+        new_policy = GreedyPolicy(mdp, new_value_function)
 
         k += 1
 
