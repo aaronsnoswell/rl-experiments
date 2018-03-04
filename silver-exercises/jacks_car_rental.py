@@ -247,25 +247,47 @@ def main():
     """
 
     print("Initializing Jack's Car Rentals MDP")
-    mdp = JacksCarRental()
+    mdp = JacksCarRental(
+        max_cars=5,
+        max_movement=2,
+        average_hires=(1, 1),
+        average_returns=(1, 1)
+    )
     v = uniform_value_estimation(mdp)
     p = UniformRandomPolicy(mdp)
     print("Done initializing")
 
+
+    def gen_fig(v, p):
+        #plt.clf()
+        generate_contour_figure(mdp, v, p)
+
+
+    iteration_delay = 0.00001
     def on_iteration(k, v, p, v_new, p_new):
         print("Iteration {}".format(k))
-        if k == 100: return True
-        return False
+        gen_fig(v_new, p_new)
+        #plt.pause(iteration_delay)
+        if p == p_new: return True
+
+
+    #fig = plt.figure()
+    gen_fig(v, p)
+    #plt.show(block=False)
 
     print("Applying policy iteration...")
     vstar, pstar = policy_iteration(
         mdp,
         v,
         p,
-        on_iteration=on_iteration
+        on_iteration=on_iteration,
+        epsillon=3
     )
 
     print("Done")
+
+    gen_fig(vstar, pstar)
+    #plt.show()
 
 
 if __name__ == "__main__":
