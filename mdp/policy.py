@@ -62,6 +62,14 @@ class Policy():
         )
 
 
+    def __eq__(self, other): 
+        if not type(self) == type(other): return False
+        if not self.mdp_type == other.mdp_type: return False
+        return self.policy_mapping == other.policy_mapping
+
+
+
+
 class UniformRandomPolicy(Policy):
     """
     Implements a uniform random distribution over possible actions
