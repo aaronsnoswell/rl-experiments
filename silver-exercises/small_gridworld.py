@@ -58,32 +58,6 @@ def main():
         )
 
 
-    iteration_delay = 0.00001
-    def on_iteration(k, value_function, policy):
-        """
-        Callback for each iteration
-        """
-        print("Iteration {}".format(k))
-        draw_figure(
-            value_function,
-            policy,
-            interim_figure_title.format(k),
-            figure_subtitle
-        )
-        plt.pause(iteration_delay)
-        #input("Press any key to continue")
-        return True
-
-
-    def on_iteration_ipe(k, value_function):
-        """
-        An iteration callback for IPE
-        """
-        policy = GreedyPolicy(small_gw, value_function)
-        on_iteration(k, value_function, policy)
-        if k == 100: return True
-
-
     # Draw initial figure
     draw_figure(
         value_function,
@@ -93,29 +67,30 @@ def main():
     )
     plt.show(block=False)
 
-    # Apply IPE
-    value_function = iterative_policy_evaluation(
-        small_gw,
-        policy,
-        initial_value_function=value_function,
-        on_iteration=on_iteration_ipe
-    )
-    policy = GreedyPolicy(small_gw, value_function)
 
+    iteration_delay = 0.00001
+    def on_iteration(k, v, p, v_new, p_new):
+        """
+        Callback for each iteration
+        """
+        draw_figure(
+            v_new,
+            p_new,
+            interim_figure_title.format(k),
+            figure_subtitle
+        )
+        plt.pause(iteration_delay)
 
-    """
-    I DO NOT understand. IPE and PI run the exact same code to evaluate the
-    # policy at step 0 and get different value functions@!!!!?!?!?!!
-    # Apply policy iteration
+        # Check for policy convergence
+        if p == p_new: return True
+
+    
     value_function, policy = policy_iteration(
         small_gw,
         value_function,
         policy,
-        max_iterations=10,
         on_iteration=on_iteration
     )
-    """
-
 
     print("Done")
     draw_figure(

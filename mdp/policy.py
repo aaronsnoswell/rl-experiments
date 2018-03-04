@@ -261,21 +261,24 @@ def policy_iteration(
     while True:
 
         # Do policy evaluation
-        value_function = evaluate_policy(
+        new_value_function = evaluate_policy(
             mdp,
             policy,
             initial_value_function=value_function
         )
 
         # Do greedy policy improvement
-        policy = GreedyPolicy(mdp, value_function)
+        new_policy = GreedyPolicy(mdp, value_function)
 
         k += 1
 
         if on_iteration is not None:
-            if on_iteration(k, value_function, policy) == True:
+            if on_iteration(k, value_function, policy, new_value_function, new_policy) == True:
                 # callback indicated convergence - exit
                 break
+
+        value_function = new_value_function
+        policy = new_policy
 
         # Check convergence criteria
         if k >= max_iterations:
