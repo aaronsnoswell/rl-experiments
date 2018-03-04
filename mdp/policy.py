@@ -100,7 +100,7 @@ class GreedyPolicy(Policy):
     """
 
 
-    def __init__(self, mdp, value_function, epsillon=0.0001):
+    def __init__(self, mdp, value_function, epsillon=0.001):
         """
         Constructor
         """
@@ -119,19 +119,20 @@ class GreedyPolicy(Policy):
                 self.policy_mapping[state][action] = 0
 
             # Find the set of best possible actions
-            best_actions = []
-            best_action_value = -math.inf
             possible_actions = mdp.get_possible_action_mapping()[state]
-            for action in possible_actions:
-                _, _, new_state = mdp.transition(state, action)
-                # Find the value function estimate for the possible new state
-                new_state_value = value_function[new_state]
+            if len(possible_actions) == 0: continue
 
-                if new_state_value > best_action_value:
-                    best_actions = [action]
-                    best_action_value = new_state_value
-                elif math.isclose(new_state_value, best_action_value, abs_tol=epsillon):
-                    best_actions.append(action)
+            possible_action_values = [
+                    value_function[
+                        mdp.transition(state, action)[2]
+                    ] for action in possible_actions
+                ]
+            best_action_indices = abs(
+                    possible_action_values - possible_action_values[
+                        np.argmax(possible_action_values)
+                    ]
+                ) < epsillon
+            best_actions = np.array(possible_actions)[best_action_indices]
 
             # Assign transition preferences
             for best_action in best_actions:
