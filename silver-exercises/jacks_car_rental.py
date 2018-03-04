@@ -50,8 +50,6 @@ class JacksCarRental(MarkovDecisionProcess):
             return "({}, {})".format(self.l1_cars, self.l2_cars)
 
 
-
-
     @staticmethod
     def poisson_prob(l, n):
         """
@@ -198,6 +196,49 @@ class JacksCarRental(MarkovDecisionProcess):
 
         self.discount_factor = 0.5
 
+
+def generate_contour_figure(mdp, v, p):
+    """
+    Generate a contour plot of a Jack's Car Rental Policy
+    """
+
+    fig = plt.gcf()
+    ax = plt.gca()
+
+    val_grid = np.empty(
+        shape=(
+            mdp.max_cars + 1,
+            mdp.max_cars + 1
+        ),
+        dtype=float
+    )
+    for s in v:
+        val_grid[s.l1_cars, s.l2_cars] = v[s]
+
+    policy_values = np.empty(
+        shape=(
+            mdp.max_cars + 1,
+            mdp.max_cars + 1
+        ),
+        dtype=int
+    )
+    for s in p.policy_mapping:
+        policy_values[s.l1_cars, s.l2_cars] = p.get_action(
+            mdp,
+            s,
+            tie_breaker_action=0
+        )
+
+    print(val_grid)
+    print(policy_values)
+
+    """
+    plt.contourf(
+        list(range(mdp.max_cars + 1)),
+        list(range(mdp.max_cars + 1)),
+        policy_values
+    )
+    """
 
 
 def main():
