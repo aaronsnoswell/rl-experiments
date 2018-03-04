@@ -38,9 +38,20 @@ class Policy():
         return self.policy_mapping[current_state]
 
 
-    def get_action(self, mdp, current_state):
+    def get_action(
+        self,
+        mdp,
+        current_state,
+        *,
+        tie_breaker_action=None,
+        epsillon=0.001
+        ):
         """
         Returns a sampled action from the given state
+
+        If tie_breaker_action is given, this will be used in the event of a
+        tie in possible action values, otherwise one action will be sampled
+        Epsillon is used for comparing values for equivalentce
         """
 
         action_distribution = self.get_action_distribution(current_state)
@@ -49,7 +60,28 @@ class Policy():
         for action in mdp.get_action_set():
             action_weights = np.append(action_weights, action_distribution.get(action, 0))
 
-        return np.random.choice(mdp.get_action_set(), p=action_weights)
+        best_action_indices = abs(action_weights - np.max(action_weights)) < epsillon
+        action_options = np.array(list(action_distribution.keys()))
+        best_actions = action_options[best_action_indices]
+        best_action_weights = action_weights[best_action_indices]
+        num_best_actions = len(best_actions)
+
+        if num_best_actions == 1:
+
+            # Return best action
+            return best_actions[0]
+
+        else:
+
+            if tie_breaker_action == None:
+
+                # Sample an action and return it
+                return np.random.choice(best_actions, p=best_action_weights)
+
+            else:
+
+                # Return the tie-breaker action
+                return tie_breaker_action
 
 
     def __str__(self):
