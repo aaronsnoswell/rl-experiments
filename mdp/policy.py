@@ -283,14 +283,16 @@ def policy_iteration(
     policy,
     *,
     max_iterations=math.inf,
-    on_iteration=None
+    on_iteration=None,
+    epsillon=0.001
     ):
     """
     Performs policy iteration to find V*, pi*
     """
 
     k = 0
-    while True:
+    continue_iterating = True
+    while continue_iterating:
 
         # Do policy evaluation
         new_value_function = evaluate_policy(
@@ -299,21 +301,52 @@ def policy_iteration(
             initial_value_function=value_function
         )
 
+        """
+        new_value_function = iterative_policy_evaluation(
+            mdp,
+            policy,
+            initial_value_function=value_function,
+            max_iterations=1
+        )
+        """
+
         # Do greedy policy improvement
         new_policy = GreedyPolicy(mdp, new_value_function)
 
         k += 1
 
+        # Call iteration callback
         if on_iteration is not None:
             if on_iteration(k, value_function, policy, new_value_function, new_policy) == True:
                 # callback indicated convergence - exit
-                break
+                print("Callback requested exit")
+                continue_iterating = False
 
+        # Test value function convergence
+        value_converged = True
+        for s in new_value_function:
+            if abs(new_value_function[s] - value_function[s]) > epsillon:
+                value_converged = False
+                break
+        
+        if value_converged:
+            print("Got value convergence")
+            continue_iterating = False
+
+
+        # Test policy for convergence
+        if new_policy == policy:
+            print("Got policy convergence")
+            continue_iterating = False
+
+        # Check max iteration criteria
+        if k >= max_iterations:
+            print("Reached max iterations")
+            continue_iterating = False
+
+        # Copy new functions
         value_function = new_value_function
         policy = new_policy
 
-        # Check convergence criteria
-        if k >= max_iterations:
-            break
-
+    # Return computed functions
     return value_function, policy
