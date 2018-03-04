@@ -197,7 +197,7 @@ def evaluate_policy(mdp, policy, *, initial_value_function=None):
     # Initialize the value function
     if initial_value_function is None:
         initial_value_function = uniform_value_estimate(mdp)
-    value_function = initial_value_function
+    value_function = dict(initial_value_function)
 
     for state in mdp.state_set:
 
@@ -253,7 +253,7 @@ def iterative_policy_evaluation(
     # Initialize the value function
     if initial_value_function is None:
         initial_value_function = uniform_value_estimate(mdp)
-    value_function = initial_value_function
+    value_function = dict(initial_value_function)
 
     k = 0
     while True:
