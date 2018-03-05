@@ -343,7 +343,7 @@ class GridWorld(MarkovDecisionProcess):
                     color=line_color,
                     linewidth=line_width
                 )
-            )      
+            )
 
         ax.set_aspect("equal", adjustable="box")
         plt.xlim([0, self.width])
