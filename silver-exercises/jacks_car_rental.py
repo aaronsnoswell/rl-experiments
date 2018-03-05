@@ -249,7 +249,7 @@ def main():
     print("Initializing Jack's Car Rentals MDP")
     mdp = JacksCarRental(
         max_cars=5,
-        max_movement=2,
+        max_movement=3,
         average_hires=(1, 1),
         average_returns=(1, 1)
     )
