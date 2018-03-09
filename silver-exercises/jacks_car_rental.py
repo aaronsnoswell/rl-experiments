@@ -66,7 +66,8 @@ class JacksCarRental(MarkovDecisionProcess):
         max_movement=5,
         average_hires=(3, 4),
         average_returns=(3 ,2),
-        reward_per_hire=10
+        reward_per_hire=10,
+        discount_factor=0.5
         ):
         """
         Constructor
@@ -108,6 +109,46 @@ class JacksCarRental(MarkovDecisionProcess):
             )
         )
 
+        # Possible action mapping
+        self.possible_action_mapping = {}
+        for state in self.state_set:
+            self.possible_action_mapping[state] = self.action_set[
+                (self.action_set <= state.l1_cars) & (-1 * self.action_set <= state.l2_cars)
+            ]
+
+
+        def _compute_prob_table(av_returns, av_hires):
+            """
+            Helper function to compute a poisson probability table given
+            an average number of returns and hires
+            """
+            probs = {}
+            expected_number_of_hires = {}
+            for i in range(-self.max_cars - self.max_movement, self.max_cars + 1):
+                
+                probs[i] = 0
+                expected_number_of_hires[i] = 0
+
+                # p(i cars) is determined by a combination of returns and hires
+                for returns in range(self.max_cars + 1):
+                    prob_of_returns = JacksCarRental.poisson_prob(av_returns, returns)
+
+                    for hires in range(self.max_cars +1):
+                        prob_of_hires = JacksCarRental.poisson_prob(av_hires, returns)
+
+                        if returns - hires != i: continue
+
+                        # This was a valid combination of returns and hires
+                        probs[i] += prob_of_returns * prob_of_hires
+                        expected_number_of_hires[i] += prob_of_hires * hires
+            
+            return probs, expected_number_of_hires
+
+        
+        # Pre-compute the probabilities of certain numbers of cars arriving and location 1 and 2
+        self._loc1_probs, self._loc1_hires = _compute_prob_table(self.average_returns[0], self.average_hires[0])
+        self._loc2_probs, self._loc2_hires = _compute_prob_table(self.average_returns[1], self.average_hires[1])
+
         # Transition matrix
         self.transition_matrix = np.zeros(
             shape = (
@@ -116,129 +157,174 @@ class JacksCarRental(MarkovDecisionProcess):
             )
         )
 
-        # Precompute the world probability transition grid (conditioned on actions)
-        l1_world_probs = {}
-        l2_world_probs = {}
-        chance_moved_options = self.max_cars + self.max_movement
-        chance_moved_range = range(-chance_moved_options, chance_moved_options+1)
-        
-        for chance_moved in chance_moved_range:
-
-            l1_world_probs[chance_moved] = 0
-            l2_world_probs[chance_moved] = 0
-
-            for returns in range(self.max_cars):
-                for hires in range(self.max_cars):
-                    if returns - hires == chance_moved:
-
-                        l1_world_probs[chance_moved] +=\
-                            JacksCarRental.poisson_prob(self.average_returns[0], returns) *\
-                            JacksCarRental.poisson_prob(self.average_hires[0], hires)
-
-                        l2_world_probs[chance_moved] +=\
-                            JacksCarRental.poisson_prob(self.average_returns[1], returns) *\
-                            JacksCarRental.poisson_prob(self.average_hires[1], hires)
-
-
-        # Populate the full transition matrix
-        for csi, current_state in enumerate(self.state_set):
-
-            for ai, action in enumerate(self.action_set):
-
-                for nsi, new_state in enumerate(self.state_set):
-
-                    # Determine the probability of the new state
-                    # For this state to be valid, chance must have moved an
-                    # appropriate number of cars to both l1 and l2
-                    # As returns and hires are independent, and l1 and l2 are
-                    # independent, we can multiply their probabilities
-                    self.transition_matrix[csi * len(self.action_set) + ai, nsi] =\
-                        l1_world_probs[new_state.l1_cars - current_state.l1_cars + action] *\
-                        l2_world_probs[new_state.l2_cars - current_state.l2_cars - action]
-
-        # Normalize the transition matrix rows to true probabilities
-        for ri in range(self.transition_matrix.shape[0]):
-            row = self.transition_matrix[ri, :]
-            total = np.sum(row)
-            self.transition_matrix[ri, :] = row / total
-
-
-        # Populate the reward mapping
+        # Reward function
         self.reward_mapping = {}
-        for csi, current_state in enumerate(self.state_set):
 
-            current_state = current_state
+        # Build transition function and reward mapping
+        for current_state in self.state_set:
+            csi = np.where(self.state_set == current_state)[0][0]
+
             self.reward_mapping[current_state] = {}
-            
-            for ai, action in enumerate(self.action_set):
 
+            for action in self.possible_action_mapping[current_state]:
+                asi = np.where(self.action_set == action)[0][0]
+                
+                # Figure out how many cars are where in the morning
+                morning_car_counts = (
+                    current_state.l1_cars - action,
+                    current_state.l2_cars + action
+                )
+
+                # Loop over the transition matrix columns
+                for possible_afternoon_state in self.state_set:
+                    tsi = np.where(self.state_set == possible_afternoon_state)[0][0]
+
+                    # To get to this afternoon state, chance needed to move cars around as follows
+                    loc1_chance_moved = possible_afternoon_state.l1_cars - morning_car_counts[0]
+                    loc2_chance_moved = possible_afternoon_state.l2_cars - morning_car_counts[1]
+
+                    # As hires and returns at locations are independant, 
+                    # p(possible_afternoon_state) = p(loc1_chance_moved) * p(loc2_chance_moved)
+                    prob = self._loc1_probs[loc1_chance_moved] * self._loc2_probs[loc2_chance_moved]
+                    self.transition_matrix[csi * len(self.action_set) + asi, tsi] = prob
+
+                # Normalize the probabilites in this row of the transition matrix
+                row_sum = sum(self.transition_matrix[csi * len(self.action_set) + asi, :])
+                self.transition_matrix[csi * len(self.action_set) + asi, :] =\
+                    self.transition_matrix[csi * len(self.action_set) + asi, :] / row_sum
+
+                # Now compute the reward for this state-action pair
+                # (must have first computed the full normalized transition matrix row)
                 self.reward_mapping[current_state][action] = 0
+                for possible_afternoon_state in self.state_set:
+                    tsi = np.where(self.state_set == possible_afternoon_state)[0][0]
 
-                for nsi, new_state in enumerate(self.state_set):
+                    # To get to this afternoon state, chance needed to move cars around as follows
+                    loc1_chance_moved = possible_afternoon_state.l1_cars - morning_car_counts[0]
+                    loc2_chance_moved = possible_afternoon_state.l2_cars - morning_car_counts[1]
 
-                    num_hires = current_state.l1_cars - new_state.l1_cars +\
-                        current_state.l2_cars - new_state.l2_cars
-                    num_hires = max(0, num_hires)
+                    # Therefore the number of hires we had today must have been
+                    num_hires = min(0, loc1_chance_moved) + min(0, loc2_chance_moved)
 
-                    prob = self.transition_matrix[csi * len(self.action_set) + ai, nsi]
+                    # This occured with the following probability
+                    prob = self.transition_matrix[csi * len(self.action_set) + asi, tsi]
 
-                    if num_hires != 0:
-                        self.reward_mapping[current_state][action] +=\
-                            num_hires * self.reward_per_hire * prob
-                                
+                    # So we can update the reward as follows
+                    self.reward_mapping[current_state][action] += prob * num_hires
 
+                # Finally, convert the reward mapping entry (currently an
+                # expected number of hires) to units of $
+                self.reward_mapping[current_state][action] *= self.reward_per_hire
 
-        self.possible_action_mapping = {}
-        for state in self.state_set:
-            self.possible_action_mapping[state] = self.action_set[
-                (self.action_set <= state.l1_cars) & (-1 * self.action_set <= state.l2_cars)
-            ]
-
-        self.discount_factor = 0.5
+        # Discount factor
+        self.discount_factor = discount_factor
 
 
-def generate_contour_figure(mdp, v, p):
-    """
-    Generate a contour plot of a Jack's Car Rental Policy
-    """
+    def generate_contour_figure(self, policy):
+        """
+        Generate a contour plot of the given JCR policy
+        """
 
-    fig = plt.gcf()
-    ax = plt.gca()
+        # Render settings
+        line_width = 0.75
+        line_color = "#dddddd"
 
-    val_grid = np.empty(
-        shape=(
-            mdp.max_cars + 1,
-            mdp.max_cars + 1
-        ),
-        dtype=float
-    )
-    for s in v:
-        val_grid[s.l1_cars, s.l2_cars] = v[s]
+        # Store width and height
+        width = self.max_cars + 1
+        height = self.max_cars + 1
 
-    policy_values = np.empty(
-        shape=(
-            mdp.max_cars + 1,
-            mdp.max_cars + 1
-        ),
-        dtype=int
-    )
-    for s in p.policy_mapping:
-        policy_values[s.l1_cars, s.l2_cars] = p.get_action(
-            mdp,
-            s,
-            tie_breaker_action=0
+        # Get render helpers
+        fig = plt.gcf()
+        ax = plt.gca()
+
+        def color_from_action(ac):
+            """
+            Helper function to compute a greyscale color from an action
+            """
+            real_val = (ac + self.max_movement) / (self.max_movement * 2)
+            color = [real_val] * 3
+            return color
+
+
+        # Compute pollicy grid
+        policy_grid = np.empty(
+            shape=(
+                self.max_cars + 1,
+                self.max_cars + 1
+            ),
+            dtype=int
         )
+        for s in policy.policy_mapping:
+            policy_grid[s.l1_cars, s.l2_cars] = policy.get_action(
+                self,
+                s,
+                tie_breaker_action=0
+            )
 
-    print(val_grid)
-    print(policy_values)
+        # Draw policy
+        for yi in range(height):
+            for xi in range(width):
 
-    """
-    plt.contourf(
-        list(range(mdp.max_cars + 1)),
-        list(range(mdp.max_cars + 1)),
-        policy_values
-    )
-    """
+                render_pos = (
+                    xi,
+                    height - (yi + 1)
+                )
+
+                action = policy_grid[yi, xi]
+                color = color_from_action(action)
+
+                # Draw this square, and it's associated action as text
+                ax.add_artist(plt.Rectangle(
+                        render_pos,
+                        width=1,
+                        height=1,
+                        color=color
+                    )
+                )
+                draw_text(
+                    xi,
+                    yi,
+                    height,
+                    action,
+                    textcolor=high_contrast_color(color),
+                    formatstr="{: d}"
+                )
+
+        # Draw grid lines
+        for i in range(height - 1):
+            ax.add_artist(plt.Line2D(
+                    (0, width),
+                    (i+1, i+1),
+                    color=line_color,
+                    linewidth=line_width
+                )
+            )
+        for i in range(width - 1):
+            ax.add_artist(plt.Line2D(
+                    (i+1, i+1),
+                    (0, height),
+                    color=line_color,
+                    linewidth=line_width
+                )
+            )
+
+        # Configure limits
+        plt.xlim([0, width])
+        plt.ylim([0, height])
+        ax.set_aspect("equal", adjustable="box")
+
+        # Configure labels
+        plt.xticks(
+            [i + 0.5 for i in range(0, self.max_cars + 1)],
+            range(0, self.max_cars + 1)
+        )
+        plt.xlabel("Cars at location 2")
+        plt.ylabel("Cars at location 1")
+        plt.yticks(
+            [i + 0.5 for i in range(0, self.max_cars + 1)],
+            range(0, self.max_cars + 1)
+        )
+        ax.tick_params(length=0)
 
 
 def main():
@@ -246,34 +332,40 @@ def main():
     Excercises the JacksCarRental() class
     """
 
-    print("Initializing Jack's Car Rentals MDP")
+    print("Initializing Jack's Car Rental MDP")
+    """
+    mdp = JacksCarRental(
+        max_cars=20,
+        max_movement=5,
+        average_hires=(3, 4),
+        average_returns=(3, 2)
+    )
+    """
     mdp = JacksCarRental(
         max_cars=5,
-        max_movement=3,
-        average_hires=(1, 1),
-        average_returns=(1, 1)
+        max_movement=2,
+        average_hires=(1, 2),
+        average_returns=(1, 1),
+        discount_factor=0
     )
     v = uniform_value_estimation(mdp)
     p = UniformRandomPolicy(mdp)
     print("Done initializing")
 
-
-    def gen_fig(v, p):
-        #plt.clf()
-        generate_contour_figure(mdp, v, p)
-
-
-    iteration_delay = 0.00001
+    iteration_delay = 1
     def on_iteration(k, v, p, v_new, p_new):
         print("Iteration {}".format(k))
-        gen_fig(v_new, p_new)
-        #plt.pause(iteration_delay)
+
+        plt.clf()
+        mdp.generate_contour_figure(p_new)
+        plt.pause(iteration_delay)
+
         if p == p_new: return True
 
 
-    #fig = plt.figure()
-    gen_fig(v, p)
-    #plt.show(block=False)
+    fig = plt.figure()
+    mdp.generate_contour_figure(p)
+    plt.show(block=False)
 
     print("Applying policy iteration...")
     vstar, pstar = policy_iteration(
@@ -287,7 +379,7 @@ def main():
     print("Done")
 
     gen_fig(vstar, pstar)
-    #plt.show()
+    plt.show()
 
 
 if __name__ == "__main__":
