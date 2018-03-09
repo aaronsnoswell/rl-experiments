@@ -6,6 +6,7 @@ from .policy import Policy, UniformRandomPolicy, GreedyPolicy,\
     uniform_value_estimation, evaluate_policy, iterative_policy_evaluation,\
     policy_iteration
 from .grid_world import GridWorld
+from .utils import showall, high_contrast_color, draw_text
 
 __all__ = [
     "MarkovProcess",
@@ -18,5 +19,8 @@ __all__ = [
     "evaluate_policy",
     "iterative_policy_evaluation",
     "policy_iteration",
-    "GridWorld"
+    "GridWorld",
+    "showall",
+    "high_contrast_color",
+    "draw_text"
 ]
