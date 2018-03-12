@@ -67,7 +67,8 @@ class JacksCarRental(MarkovDecisionProcess):
         average_hires=(3, 4),
         average_returns=(3 ,2),
         reward_per_hire=10,
-        discount_factor=0.5
+        cost_to_move=2,
+        discount_factor=0.9
         ):
         """
         Constructor
@@ -87,6 +88,9 @@ class JacksCarRental(MarkovDecisionProcess):
 
         # Reward for each hire ($)
         self.reward_per_hire = reward_per_hire
+
+        # Cost to move a car ($)
+        self.cost_to_move = cost_to_move
 
         # (Cars at location 1, Cars at location 2)
         self.state_set = np.array([JacksCarRental.State(t) for t in
@@ -212,9 +216,12 @@ class JacksCarRental(MarkovDecisionProcess):
                     # So we can update the reward as follows
                     self.reward_mapping[current_state][action] += prob * num_hires
 
-                # Finally, convert the reward mapping entry (currently an
+                # Convert the reward mapping entry (currently an
                 # expected number of hires) to units of $
                 self.reward_mapping[current_state][action] *= self.reward_per_hire
+
+                # And finally, subtract the cost of moving the number of cars we moved
+                self.reward_mapping[current_state][action] -= abs(action) * self.cost_to_move
 
         # Discount factor
         self.discount_factor = discount_factor
@@ -333,6 +340,7 @@ def main():
     """
 
     print("Initializing Jack's Car Rental MDP")
+    
     """
     mdp = JacksCarRental(
         max_cars=20,
