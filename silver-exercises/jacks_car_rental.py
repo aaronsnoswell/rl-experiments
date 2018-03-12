@@ -351,11 +351,11 @@ def main():
     """
     mdp = JacksCarRental(
         max_cars=5,
-        max_movement=2,
-        average_hires=(1, 2),
-        average_returns=(1, 1),
-        discount_factor=0
+        max_movement=3,
+        average_hires=(3, 4),
+        average_returns=(3, 2)
     )
+    
     v = uniform_value_estimation(mdp)
     p = UniformRandomPolicy(mdp)
     print("Done initializing")
