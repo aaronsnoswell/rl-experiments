@@ -67,7 +67,7 @@ def main():
     plt.show(block=False)
 
 
-    iteration_delay = 0.00001
+    iteration_delay = 1
     def on_iteration(k, v, p, v_new, p_new):
         """
         Callback for each iteration
