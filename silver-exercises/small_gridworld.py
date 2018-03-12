@@ -36,7 +36,7 @@ def main():
 
     # Prepare initial estimates
     policy = UniformRandomPolicy(small_gw)
-    value_function = small_gw.uniform_value_estimation()
+    value_function = small_gw.uniform_value_estimate()
 
     # Prepare plotting variables
     interim_figure_title = r"Small GridWorld with $\pi$ and $V$ for Policy Iteration k={}"

@@ -82,7 +82,7 @@ class MarkovDecisionProcess(MarkovRewardProcess):
         return reward_vector
 
 
-    def uniform_value_estimation(self, value=0):
+    def uniform_value_estimate(self, value=0):
         """
         Computes a uniform value function estimate using the given value
         """

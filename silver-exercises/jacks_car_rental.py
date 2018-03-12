@@ -356,8 +356,8 @@ def main():
         average_returns=(3, 2)
     )
     
-    v = uniform_value_estimation(mdp)
-    p = UniformPolicy(mdp, 0)
+    v = jcr.uniform_value_estimate()
+    p = UniformPolicy(jcr, 0)
 
     print("Done initializing")
 
