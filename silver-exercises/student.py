@@ -10,8 +10,7 @@ import os, sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from mdp import MarkovDecisionProcess
-from mdp import UniformRandomPolicy, iterative_policy_evaluation
-
+from mdp import UniformRandomPolicy
 
 class Student(MarkovDecisionProcess):
     """
