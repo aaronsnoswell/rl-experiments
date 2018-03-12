@@ -1,6 +1,6 @@
 """
-An implementation of the jack's car rental problem from David Silver's RL
-lecture series, lecture 3, p17
+An implementation of the Jack's Car Rental problem from Sutton and Barto,
+Ex 4.2, p87
 """
 
 import numpy as np
