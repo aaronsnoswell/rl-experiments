@@ -211,7 +211,12 @@ def uniform_value_estimation(mdp, value=0):
     return value_function
 
 
-def evaluate_policy(mdp, policy, *, initial_value_function=None):
+def evaluate_policy(
+    mdp,
+    policy,
+    *,
+    initial_value_function=None
+    ):
     """
     Evaluates a policy once to get a new value function estimate
     """
@@ -222,14 +227,11 @@ def evaluate_policy(mdp, policy, *, initial_value_function=None):
     value_function = dict(initial_value_function)
 
     for state in mdp.state_set:
-
+        state_index = np.where(mdp.state_set == state)[0][0]
+        
         new_value = 0
 
-        state_index = np.where(mdp.state_set == state)[0][0]
-
         for action in policy.policy_mapping[state]:
-
-            # Look up index of action
             action_index = np.where(mdp.action_set == action)[0][0]
 
             action_probability = policy.policy_mapping[state][action]
