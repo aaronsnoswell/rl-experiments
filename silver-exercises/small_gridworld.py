@@ -80,9 +80,6 @@ def main():
         )
         plt.pause(iteration_delay)
 
-        # Check for policy convergence
-        if p == p_new: return True
-
 
     value_function, policy = policy_iteration(
         small_gw,
