@@ -82,6 +82,16 @@ class MarkovDecisionProcess(MarkovRewardProcess):
         return reward_vector
 
 
+    def uniform_value_estimation(self, value=0):
+        """
+        Computes a uniform value function estimate using the given value
+        """
+        value_function = {}
+        for state in self.state_set:
+            value_function[state] = value
+        return value_function
+
+
     def solve_bellman_equation(self, policy):
         """
         Solves the Bellman equation for the MRP giving
