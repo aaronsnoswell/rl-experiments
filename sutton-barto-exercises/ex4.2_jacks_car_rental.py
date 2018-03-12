@@ -349,10 +349,10 @@ def main():
     )
     """
     jcr = JacksCarRental(
-        max_cars=5,
+        max_cars=10,
         max_movement=3,
-        average_hires=(3, 4),
-        average_returns=(3, 2)
+        average_hires=(1.5, 2),
+        average_returns=(1.5, 1)
     )
     
     v = jcr.uniform_value_estimate()
