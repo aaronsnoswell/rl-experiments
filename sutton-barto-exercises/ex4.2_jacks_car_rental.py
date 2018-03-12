@@ -338,6 +338,9 @@ def main():
     Excercises the JacksCarRental() class
     """
 
+    TODO: c.f. with https://github.com/swiffo/Dynamic-Programming-Car-Rental/blob/master/main.py to
+    see what I'm doing wrong...
+
     print("Initializing Jack's Car Rental MDP")
     
     """
