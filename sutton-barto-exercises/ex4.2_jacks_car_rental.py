@@ -263,7 +263,6 @@ class JacksCarRental(MarkovDecisionProcess):
         )
         for s in policy.policy_mapping:
             policy_grid[s.l1_cars, s.l2_cars] = policy.get_action(
-                self,
                 s,
                 tie_breaker_action=0
             )
