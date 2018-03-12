@@ -357,7 +357,8 @@ def main():
     )
     
     v = uniform_value_estimation(mdp)
-    p = UniformRandomPolicy(mdp)
+    p = UniformPolicy(mdp, 0)
+
     print("Done initializing")
 
     iteration_delay = 1
