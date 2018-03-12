@@ -149,10 +149,6 @@ class UniformRandomPolicy(Policy):
 
             self.policy_mapping[state] = {}
 
-            # Initialize all actions to 0 preference
-            for action in mdp.get_action_set():
-                self.policy_mapping[state][action] = 0
-
             # Apply a uniform distribution to the possible actions
             possible_actions = mdp.get_possible_action_mapping()[state]
             for action in possible_actions:
