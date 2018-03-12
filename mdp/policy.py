@@ -100,6 +100,32 @@ class Policy():
         return self.policy_mapping == other.policy_mapping
 
 
+class UniformPolicy(Policy):
+    """
+    Implements a policy that always does the same thing, regardless of state
+    """
+
+
+    def __init__(self, mdp, uniform_action):
+        """
+        Constructor
+        """
+
+        # Store reference to MDP type
+        self.mdp_type = type(mdp)
+
+        self.policy_mapping = {}
+        
+        for state in mdp.get_state_set():
+
+            self.policy_mapping[state] = {}
+
+            possible_actions = mdp.get_possible_action_mapping()[state]
+            for action in possible_actions:
+                if action == uniform_action:
+                    self.policy_mapping[state][action] = 1
+                else:
+                    self.policy_mapping[state][action] = 0
 
 
 class UniformRandomPolicy(Policy):
