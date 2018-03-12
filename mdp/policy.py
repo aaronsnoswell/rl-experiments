@@ -17,22 +17,15 @@ class Policy():
         """
 
         # A list of parameters that should be set by any sub-class
-        self.mdp_type
+        self.mdp
         self.policy_mapping
 
         raise NotImplementedError
 
 
-    def __str__(self):
-        """
-        Get string representation
-        """
-        return "<Policy object>"
-
-
     def get_action_distribution(self, current_state):
         """
-        Returns a distribution {a_i:p_i, ... a_n:p_n} over action
+        Returns a distribution {a_i:p_i, ... a_n:p_n} over actions
         given the current state
         """
         return self.policy_mapping[current_state]
@@ -40,7 +33,6 @@ class Policy():
 
     def get_action(
         self,
-        mdp,
         current_state,
         *,
         tie_breaker_action=None,
@@ -55,13 +47,9 @@ class Policy():
         """
 
         action_distribution = self.get_action_distribution(current_state)
-
-        action_weights = np.array([])
-        for action in mdp.get_action_set():
-            action_weights = np.append(action_weights, action_distribution.get(action, 0))
-
-        best_action_indices = abs(action_weights - np.max(action_weights)) < epsillon
         action_options = np.array(list(action_distribution.keys()))
+        action_weights = np.array(list(action_distribution.values()))
+        best_action_indices = abs(action_weights - np.max(action_weights)) < epsillon
         best_actions = action_options[best_action_indices]
         best_action_weights = action_weights[best_action_indices]
         num_best_actions = len(best_actions)
@@ -84,20 +72,168 @@ class Policy():
                 return tie_breaker_action
 
 
+    def evaluate(self, initial_value_function):
+        """
+        Evaluates this policy once to get a new value function estimate
+        """
+
+        # Deep copy the value function
+        value_function = dict(initial_value_function)
+
+        for state in self.mdp.state_set:
+            state_index = np.where(self.mdp.state_set == state)[0][0]
+
+            new_value = 0
+
+            for action in self.policy_mapping[state]:
+                action_index = np.where(self.mdp.action_set == action)[0][0]
+
+                action_probability = self.policy_mapping[state][action]
+                reward_value = self.mdp.reward_mapping.get(state, {}).get(action, 0)
+
+                next_state_expectation = 0
+                for next_state in self.mdp.state_set:
+
+                    # Look up index of state
+                    next_state_index = np.where(self.mdp.state_set == next_state)[0][0]
+                    
+                    # Get probability of transitioning to that state under s, a
+                    transition_prob = self.mdp.transition_matrix[state_index * len(self.mdp.action_set) + action_index][next_state_index]
+
+                    # Get current estimate of value for that state
+                    next_state_expectation += transition_prob * initial_value_function.get(next_state, 0)
+
+                # Discount the expectation
+                next_state_expectation *= self.mdp.discount_factor
+
+                # Sum with current sate reward
+                new_value += action_probability * (reward_value + next_state_expectation)
+
+            # Store new value estimate for this state
+            value_function[state] = new_value
+
+        return value_function
+
+
+    def iterative_policy_evaluation(
+        self,
+        initial_value_function,
+        *,
+        on_iteration=None,
+        epsillon=0.001,
+        max_iterations=math.inf
+        ):
+        """
+        Performs IPE to determine a value function
+        """
+
+        # Deep copy the value function
+        value_function = dict(initial_value_function)
+
+        k = 0
+        continue_iterating = True
+        while continue_iterating:
+            
+            # Update iteration index
+            k += 1
+
+            # Update the value function
+            new_value_function = self.evaluate(value_function)
+            
+            if on_iteration is not None:
+                on_iteration(k, value_function, new_value_function)
+
+            # Find largest value difference
+            largest_delta = 0
+            for state in value_function:
+                delta = abs(value_function[state] - new_value_function[state])
+                if delta > largest_delta:
+                    largest_delta = delta
+
+            # Check convergence criteria
+            if largest_delta < epsillon:
+                print("IPE: Got converged value function after {} iteration(s)".format(k))
+                continue_iterating = False
+
+            if k >= max_iterations:
+                print("IPE: Stopping after {} iteration(s)".format(k))
+                continue_iterating = False
+
+            value_function = new_value_function
+
+        return value_function
+
+
     def __str__(self):
         """
         Get string representation
         """
         return "<{} initialized on {} MarkovDecisionProcess>".format(
             type(self).__name__,
-            self.mdp_type
+            type(self.mdp)
         )
 
 
-    def __eq__(self, other): 
-        if not type(self) == type(other): return False
-        if not self.mdp_type == other.mdp_type: return False
-        return self.policy_mapping == other.policy_mapping
+    def __eq__(self, other):
+        if self.mdp != other.mdp: return False
+        if self.policy_mapping != other.policy_mapping: return False
+        return True
+
+
+    @staticmethod
+    def policy_iteration(
+        initial_policy,
+        initial_value_function,
+        *,
+        on_iteration=None,
+        epsillon=0.001,
+        max_value_iterations=math.inf,
+        max_iterations=math.inf
+        ):
+        """
+        Performs policy iteration to find V*, pi*
+        """
+
+        # Deep copy the value function
+        policy = initial_policy
+        value_function = dict(initial_value_function)
+
+        k = 0
+        continue_iterating = True
+        while continue_iterating:
+
+            # Increment counter
+            k += 1
+
+            # Do policy evaluation until value function converges
+            new_value_function = policy.iterative_policy_evaluation(
+                value_function,
+                epsillon=epsillon,
+                max_iterations=max_value_iterations
+            )
+
+            # Do greedy policy improvement
+            new_policy = GreedyPolicy(policy.mdp, new_value_function)
+
+            # Call on_iteration callback
+            if on_iteration is not None:
+                on_iteration(k, value_function, policy, new_value_function, new_policy)
+
+            # Test policy for stability
+            if new_policy == policy:
+                print("PI: Got policy convergence after {} iterations".format(k))
+                continue_iterating = False
+
+            if k >= max_iterations:
+                print("PI: Stopping after {} iterations".format(k))
+                continue_iterating = False
+
+            # Copy new functions
+            value_function = new_value_function
+            policy = new_policy
+
+        # Return converged value function
+        return value_function, policy
 
 
 class UniformPolicy(Policy):
@@ -111,16 +247,15 @@ class UniformPolicy(Policy):
         Constructor
         """
 
-        # Store reference to MDP type
-        self.mdp_type = type(mdp)
-
+        # Store reference to MDP
+        self.mdp = mdp
         self.policy_mapping = {}
         
-        for state in mdp.get_state_set():
+        for state in self.mdp.get_state_set():
 
             self.policy_mapping[state] = {}
 
-            possible_actions = mdp.get_possible_action_mapping()[state]
+            possible_actions = self.mdp.get_possible_action_mapping()[state]
             for action in possible_actions:
                 if action == uniform_action:
                     self.policy_mapping[state][action] = 1
@@ -140,9 +275,8 @@ class UniformRandomPolicy(Policy):
         Constructor
         """
 
-        # Store reference to MDP type
-        self.mdp_type = type(mdp)
-
+        # Store reference to MDP
+        self.mdp = mdp
         self.policy_mapping = {}
         
         for state in mdp.get_state_set():
@@ -157,8 +291,8 @@ class UniformRandomPolicy(Policy):
 
 class GreedyPolicy(Policy):
     """
-    Implements a greedy policy - goes for the highest value function estimate
-    at each state
+    Implements a greedy policy - goes for the highest estimated value at each
+    state
     """
 
 
@@ -167,9 +301,8 @@ class GreedyPolicy(Policy):
         Constructor
         """
 
-        # Store reference to MDP type
-        self.mdp_type = type(mdp)
-
+        # Store reference to MDP
+        self.mdp = mdp
         self.policy_mapping = {}
         
         for state in mdp.get_state_set():
@@ -182,13 +315,16 @@ class GreedyPolicy(Policy):
 
             # Find the set of best possible actions
             possible_actions = mdp.get_possible_action_mapping()[state]
-            if len(possible_actions) == 0: continue
 
-            possible_action_values = [
+            if len(possible_actions) == 0:
+                # If we can't do anything from this state, skip
+                continue
+
+            possible_action_values = np.array([
                     value_function[
                         mdp.transition(state, action)[2]
                     ] for action in possible_actions
-                ]
+                ])
             best_action_indices = abs(
                     possible_action_values - possible_action_values[
                         np.argmax(possible_action_values)
@@ -200,177 +336,3 @@ class GreedyPolicy(Policy):
             for best_action in best_actions:
                 self.policy_mapping[state][best_action] = 1 / len(best_actions)
 
-
-def uniform_value_estimation(mdp, value=0):
-    """
-    Computes a uniform value function estimate using the given value
-    """
-    value_function = {}
-    for state in mdp.state_set:
-        value_function[state] = value
-    return value_function
-
-
-def evaluate_policy(
-    mdp,
-    policy,
-    *,
-    initial_value_function=None
-    ):
-    """
-    Evaluates a policy once to get a new value function estimate
-    """
-
-    # Initialize the value function
-    if initial_value_function is None:
-        initial_value_function = uniform_value_estimate(mdp)
-    value_function = dict(initial_value_function)
-
-    for state in mdp.state_set:
-        state_index = np.where(mdp.state_set == state)[0][0]
-        
-        new_value = 0
-
-        for action in policy.policy_mapping[state]:
-            action_index = np.where(mdp.action_set == action)[0][0]
-
-            action_probability = policy.policy_mapping[state][action]
-            reward_value = mdp.reward_mapping.get(state, {}).get(action, 0)
-
-            next_state_expectation = 0
-            for next_state in mdp.state_set:
-
-                # Look up index of state
-                next_state_index = np.where(mdp.state_set == next_state)[0][0]
-                
-                # Get probability of transitioning to that state under s, a
-                transition_prob = mdp.transition_matrix[state_index * len(mdp.action_set) + action_index][next_state_index]
-
-                # Get current estimate of value for that state
-                next_state_expectation += transition_prob * initial_value_function.get(next_state, 0)
-
-            # Discount the expectation
-            next_state_expectation *= mdp.discount_factor
-
-            # Sum with current sate reward
-            new_value += action_probability * (reward_value + next_state_expectation)
-
-        # Store new value estimate for this state
-        value_function[state] = new_value
-
-    return value_function
-
-
-def iterative_policy_evaluation(
-    mdp,
-    policy,
-    *,
-    initial_value_function=None,
-    max_iterations=math.inf,
-    on_iteration=None
-    ):
-    """
-    Performs Iterative Policy Evaluation to determine a value function
-    under the given policy
-    """
-
-    # Initialize the value function
-    if initial_value_function is None:
-        initial_value_function = uniform_value_estimate(mdp)
-    value_function = dict(initial_value_function)
-
-    k = 0
-    while True:
-
-        # Update the value function
-        value_function = evaluate_policy(
-            mdp,
-            policy,
-            initial_value_function=value_function
-        )
-        
-        k += 1
-        
-        if on_iteration is not None:
-            if on_iteration(k, value_function) == True:
-                break
-
-        # Check termination condition
-        if k == max_iterations: break
-
-    return value_function
-
-
-def policy_iteration(
-    mdp,
-    value_function,
-    policy,
-    *,
-    max_iterations=math.inf,
-    on_iteration=None,
-    epsillon=0.001
-    ):
-    """
-    Performs policy iteration to find V*, pi*
-    """
-
-    k = 0
-    continue_iterating = True
-    while continue_iterating:
-
-        # Do policy evaluation
-        new_value_function = evaluate_policy(
-            mdp,
-            policy,
-            initial_value_function=value_function
-        )
-
-        """
-        new_value_function = iterative_policy_evaluation(
-            mdp,
-            policy,
-            initial_value_function=value_function,
-            max_iterations=1
-        )
-        """
-
-        # Do greedy policy improvement
-        new_policy = GreedyPolicy(mdp, new_value_function)
-
-        k += 1
-
-        # Call iteration callback
-        if on_iteration is not None:
-            if on_iteration(k, value_function, policy, new_value_function, new_policy) == True:
-                # callback indicated convergence - exit
-                print("Callback requested exit")
-                continue_iterating = False
-
-        # Test value function convergence
-        value_converged = True
-        for s in new_value_function:
-            if abs(new_value_function[s] - value_function[s]) > epsillon:
-                value_converged = False
-                break
-        
-        if value_converged:
-            print("Got value convergence")
-            continue_iterating = False
-
-
-        # Test policy for convergence
-        if new_policy == policy:
-            print("Got policy convergence")
-            continue_iterating = False
-
-        # Check max iteration criteria
-        if k >= max_iterations:
-            print("Reached max iterations")
-            continue_iterating = False
-
-        # Copy new functions
-        value_function = new_value_function
-        policy = new_policy
-
-    # Return computed functions
-    return value_function, policy

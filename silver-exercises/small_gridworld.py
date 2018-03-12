@@ -36,7 +36,7 @@ def main():
 
     # Prepare initial estimates
     policy = UniformRandomPolicy(small_gw)
-    value_function = uniform_value_estimation(small_gw)
+    value_function = small_gw.uniform_value_estimation()
 
     # Prepare plotting variables
     interim_figure_title = r"Small GridWorld with $\pi$ and $V$ for Policy Iteration k={}"
@@ -45,9 +45,8 @@ def main():
 
 
     def draw_figure(value_function, policy, title, subtitle):
-        """
-        Helper function to draw the figure
-        """
+        # Helper function to draw the figure
+        
         plt.clf()
         small_gw.generate_figure(
             value_function=value_function,
@@ -67,11 +66,10 @@ def main():
     plt.show(block=False)
 
 
-    iteration_delay = 1
+    iteration_delay = 0.1
     def on_iteration(k, v, p, v_new, p_new):
-        """
-        Callback for each iteration
-        """
+        # Callback for each iteration
+        
         draw_figure(
             v_new,
             p_new,
@@ -81,10 +79,9 @@ def main():
         plt.pause(iteration_delay)
 
 
-    value_function, policy = policy_iteration(
-        small_gw,
-        value_function,
+    value_function, policy = Policy.policy_iteration(
         policy,
+        value_function,
         on_iteration=on_iteration
     )
 
