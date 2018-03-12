@@ -342,14 +342,14 @@ def main():
     print("Initializing Jack's Car Rental MDP")
     
     """
-    mdp = JacksCarRental(
+    jcr = JacksCarRental(
         max_cars=20,
         max_movement=5,
         average_hires=(3, 4),
         average_returns=(3, 2)
     )
     """
-    mdp = JacksCarRental(
+    jcr = JacksCarRental(
         max_cars=5,
         max_movement=3,
         average_hires=(3, 4),
@@ -364,28 +364,27 @@ def main():
     iteration_delay = 1
     def on_iteration(k, v, p, v_new, p_new):
         plt.clf()
-        mdp.generate_contour_figure(p_new)
+        jcr.generate_contour_figure(p_new)
         plt.title("Jack's Car Rental policy after {} iteration(s)".format(k))
         plt.pause(iteration_delay)
 
 
     fig = plt.figure()
-    mdp.generate_contour_figure(p)
+    jcr.generate_contour_figure(p)
     plt.title("Jack's Car Rental policy after 0 iteration(s)")
     plt.show(block=False)
     plt.pause(iteration_delay)
 
     print("Applying policy iteration...")
-    vstar, pstar = policy_iteration(
-        mdp,
-        v,
+    vstar, pstar = Policy.policy_iteration(
         p,
+        v,
         on_iteration=on_iteration,
     )
 
     print("Done")
 
-    mdp.generate_contour_figure(pstar)
+    jcr.generate_contour_figure(pstar)
     plt.title("Jack's Car Rental $\pi*$")
     plt.show()
 
