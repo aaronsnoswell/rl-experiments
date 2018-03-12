@@ -367,8 +367,6 @@ def main():
         plt.title("Jack's Car Rental policy after {} iteration(s)".format(k))
         plt.pause(iteration_delay)
 
-        if p == p_new: return True
-
 
     fig = plt.figure()
     mdp.generate_contour_figure(p)
