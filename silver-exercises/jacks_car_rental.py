@@ -382,7 +382,6 @@ def main():
         v,
         p,
         on_iteration=on_iteration,
-        epsillon=3
     )
 
     print("Done")
