@@ -362,10 +362,9 @@ def main():
 
     iteration_delay = 1
     def on_iteration(k, v, p, v_new, p_new):
-        print("Iteration {}".format(k))
-
         plt.clf()
         mdp.generate_contour_figure(p_new)
+        plt.title("Jack's Car Rental policy after {} iteration(s)".format(k))
         plt.pause(iteration_delay)
 
         if p == p_new: return True
@@ -373,7 +372,9 @@ def main():
 
     fig = plt.figure()
     mdp.generate_contour_figure(p)
+    plt.title("Jack's Car Rental policy after 0 iteration(s)")
     plt.show(block=False)
+    plt.pause(iteration_delay)
 
     print("Applying policy iteration...")
     vstar, pstar = policy_iteration(
@@ -386,7 +387,8 @@ def main():
 
     print("Done")
 
-    gen_fig(vstar, pstar)
+    mdp.generate_contour_figure(pstar)
+    plt.title("Jack's Car Rental $\pi*$")
     plt.show()
 
 
