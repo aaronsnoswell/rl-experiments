@@ -186,26 +186,37 @@ def lp_irl(S, A, T, gamma, pi, l1=10, Rmax=10):
     c, A_ub, b_ub = add_l1norm_constraints(c, A_ub, b_ub, l1)
 
     # Show the LP system prior to solving
-    print(c[0, :])
-    print(A_ub)
-    print(b_ub[:, 0])
+    #print(c[0, :])
+    #print(A_ub)
+    #print(b_ub[:, 0])
 
     # Solve for a solution
     # NB: scipy.optimize.linprog expects a 1d c vector
 
     # NB: for my test problems, the simplex method return nan for the true
     # optimisation variables!
-    #res = linprog(c[0, :], A_ub=A_ub, b_ub=b_ub[:, 0], options={"disp": True}, method="simplex")
+    #res = linprog(c[0, :], A_ub=A_ub, b_ub=b_ub[:, 0], method="simplex")
     # The interior point method seems to work though
-    res = linprog(c[0, :], A_ub=A_ub, b_ub=b_ub[:, 0], options={"disp": True}, method="interior-point")
-    
-    # Extract the true optimisation variables
-    rewards = res['x'][0:n]
-    print(rewards)
+    res = linprog(c[0, :], A_ub=A_ub, b_ub=b_ub[:, 0],  method="interior-point")
 
-    # Normalize to the maximum reward
-    rewards = Rmax * rewards / np.linalg.norm(rewards) 
-    print(rewards)
+    # cvxopt also works (python 3.5 only)
+    #from cvxopt import matrix, solvers
+    #res = solvers.lp(matrix(c[0, :]), matrix(A_ub), matrix(b_ub))
+
+
+    def normalize(vals):
+        """
+        normalize to (0, max_val)
+        input:
+        vals: 1d array
+        """
+        min_val = np.min(vals)
+        max_val = np.max(vals)
+        return (vals - min_val) / (max_val - min_val)
+
+    
+    # Extract the true optimisation variables and re-scale
+    rewards = Rmax * normalize(res['x'][0:n])
 
     return rewards, res
 
@@ -229,6 +240,7 @@ if __name__ == "__main__":
         "s2": "o"
     }
 
+    """
     ## Try a smaller (n=2) problem
     S = np.array(["s0", "s1"])
     T = np.array([[0.4, 0.6],
@@ -239,6 +251,7 @@ if __name__ == "__main__":
       "s0": "b",
       "s1": "o"
     }
+    """
 
     # L1 norm weight
     l1=10
@@ -246,5 +259,6 @@ if __name__ == "__main__":
     # Maximum reward
     Rmax=20
 
-    lp_irl(S, A, T, gamma, pi, l1, Rmax)
+    rewards, _ = lp_irl(S, A, T, gamma, pi, l1, Rmax)
+    print(rewards)
 
