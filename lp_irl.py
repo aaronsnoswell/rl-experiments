@@ -240,7 +240,6 @@ if __name__ == "__main__":
         "s2": "o"
     }
 
-    """
     ## Try a smaller (n=2) problem
     S = np.array(["s0", "s1"])
     T = np.array([[0.4, 0.6],
@@ -251,14 +250,16 @@ if __name__ == "__main__":
       "s0": "b",
       "s1": "o"
     }
-    """
 
     # L1 norm weight
     l1=10
 
     # Maximum reward
-    Rmax=20
+    Rmax=2
 
+    print(S)
+    print(T)
+    print(pi)
     rewards, _ = lp_irl(S, A, T, gamma, pi, l1, Rmax)
     print(rewards)
 

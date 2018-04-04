@@ -333,13 +333,33 @@ class JacksCarRental(MarkovDecisionProcess):
         ax.tick_params(length=0)
 
 
+def rental_probabilities(available, customers_per_day=5):
+    """
+    List of probabilities for number of cars rented out.
+    Index signifies number of cars, value is probability.
+    """
+
+    rent_prob = []
+    for i, n in enumerate(range(available)):
+        # Poisson distribution
+        rent_prob[i] = (customers_per_day**n) / math.factorial(n) * math.exp(-customers_per_day)
+
+    # Customers equal or exceed available cars
+    rent_prob.append(1-sum(rent_prob))
+    
+    return rent_prob
+
+
 def main():
     """
     Excercises the JacksCarRental() class
     """
 
-    TODO: c.f. with https://github.com/swiffo/Dynamic-Programming-Car-Rental/blob/master/main.py to
-    see what I'm doing wrong...
+    #TODO: c.f. with https://github.com/swiffo/Dynamic-Programming-Car-Rental/blob/master/main.py to
+    #see what I'm doing wrong...
+
+    test = rental_probabilities(5)
+    print(test)
 
     print("Initializing Jack's Car Rental MDP")
     
@@ -350,7 +370,7 @@ def main():
         average_hires=(3, 4),
         average_returns=(3, 2)
     )
-    """
+    
     jcr = JacksCarRental(
         max_cars=10,
         max_movement=3,
@@ -389,6 +409,7 @@ def main():
     jcr.generate_contour_figure(pstar)
     plt.title("Jack's Car Rental $\pi*$")
     plt.show()
+    """
 
 
 if __name__ == "__main__":
