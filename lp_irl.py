@@ -1,67 +1,77 @@
-
+"""
+Implementation of Linear Programming IRL by Ng and Abbeel, 2000
+(c) 2018 Aaron Snoswell
+"""
 
 import math
 import numpy as np
-from scipy.optimize import linprog
 
 
-def lp_irl(S, A, T, gamma, pi, l1=10, Rmax=10):
+def build_sorted_transition_matrix(S, A, T, pi):
     """
-    Given a set of states S, A set of actions A, a transition matrix T, a
-    discount factor gamma and a stationary, deterministic policy pi, finds a
-    reward function R(S) for which the policy is optimal.
-
-    \ref{Ng and Abbeel, 2000}
-    The original paper: http://ai.stanford.edu/~ang/papers/icml00-irl.pdf
-    A good reference: https://www.inf.ed.ac.uk/teaching/courses/rl/slides17/8_IRL.pdf
-    A not as good reference: http://www.eecs.wsu.edu/~taylorm/14_580/yusen.pdf
+    Given a vector of states S, a vector of actions A, a transition matrix
+    T(s-a, s') and a policy dictionary, builds a sorted transition matrix
+    T(s, a, s'), where the 0th action T(:, 0, :) corresponds to the expert
+    policy, and the ith action T(:, i, :), i!=0 corresponds to the ith non
+    -expert action at each state
     """
 
-    # Measure size of state and action sets
+    # Build the compact form Transition matrix
     n = len(S)
     k = len(A)
 
-    # Helper function to get index of state
-    si = lambda s: S.tolist().index(s)
-
-    # Helper function to get index of action
-    ai = lambda a: A.tolist().index(a)
-
     # Helper function to get a transition probability
+    si = lambda s: S.tolist().index(s)
+    ai = lambda a: A.tolist().index(a)
     trans = lambda s1, a, s2: T[si(s1) * k + ai(a), si(s2)]
 
-    # Helper function to build a transition matrix, given a policy lambda
-    def trans_mat(pi):
-        T = np.zeros(shape=[n, n])
-        for from_state in S:
-            for to_state in S:
-                t = trans(from_state, pi(from_state), to_state)
-                T[si(from_state), si(to_state)] = t
-        return T
+    Tfull = np.zeros(shape=[n, k, n])
+    for s_from in S:
+        # Build vector of actions, sorted with the expert one first
+        expert_action = pi[s_from]
+        sorted_actions = np.append([expert_action], np.delete(A, ai(expert_action)))
+        for a in sorted_actions:
+            for s_to in S:
+                Tfull[si(s_from), ai(a), si(s_to)] = trans(s_from, a, s_to)
 
-    # Build Transition matrix under policy pi
-    Tpi = trans_mat(lambda s: pi[s])
+    return Tfull
 
-    # Construct transition matrices when we take the ith non-policy action at
-    # each state
-    Tnotpi = {}
-    for i in range(k - 1):
-        Tnotpi[i] = np.zeros(shape=[n, n])
 
-        for from_state in S:
-            Atmp = A.tolist()
-            Atmp.remove(pi[from_state])
-            non_policy_action = Atmp[i]
+def lp_irl(T, gamma, l1, *, Rmax=1.0, method="cvxopt"):
+    """
+    Given a transition matrix T(s, a, s') encoding a stationary deterministic
+    policy and a discount factor gamma finds a reward vector R(s) for which
+    the policy is optimal.
 
-            for to_state in S:
-                t = trans(from_state, non_policy_action, to_state)
-                Tnotpi[i][si(from_state), si(to_state)] = t
+    This method uses the Linear Programming IRL algorithm by Ng and Abbeel,
+    2000 (http://ai.stanford.edu/~ang/papers/icml00-irl.pdf). See
+    https://www.inf.ed.ac.uk/teaching/courses/rl/slides17/8_IRL.pdf for a more
+    accessible overview.
 
-    # Find the stationary distribution under the policy pi
-    #Tpi_stat = np.linalg.matrix_power(Tpi, 1000)[0, :]
+    @param T - A sorted transition matrix T(S, a, s') encoding a stationary
+        deterministic policy. The structure of T must be that the 0th action
+        T[:, 0, :] corresponds to the expert policy, and T[:, i, :], i!=0
+        corresponds to the ith non-expert action at each state
+    @param gamma - The expert's discount factor
+    @param l1 - L1 regularization weight for LP optimisation objective
+        function
+    @param Rmax - Maximum reward value
+    @param method - LP programming method. One of "cvxopt", "scipy-simplex" or
+        "scipy-interior-point"
+
+    @return Reward vector for which the given policy is optimal
+
+    TODO: Adjust L1 norm constraint generation to allow negative rewards in
+    the final vector. 
+
+    """
+
+    # Measure size of state and action sets
+    n = T.shape[0]
+    k = T.shape[1]
 
     # Compute the discounted transition matrix term
-    T_disc_inv = np.linalg.inv(np.identity(n) - gamma * Tpi)
+    T_disc_inv = np.linalg.inv(np.identity(n) - gamma * T[:, 0, :])
 
     # Formulate the linear programming problem constraints
     # NB: The general form for adding a constraint looks like this
@@ -79,7 +89,7 @@ def lp_irl(S, A, T, gamma, pi, l1=10, Rmax=10):
         This will add (k-1) * n extra constraints
         """
         for i in range(k - 1):
-            constraint_rows = -1 * (Tpi - Tnotpi[i]) @ T_disc_inv
+            constraint_rows = -1 * (T[:, 0, :] - T[:, i, :]) @ T_disc_inv
             A_ub = np.vstack((A_ub, constraint_rows))
             b_ub = np.vstack((b_ub, np.zeros(shape=[constraint_rows.shape[0], 1])))
         return c, A_ub, b_ub
@@ -105,7 +115,7 @@ def lp_irl(S, A, T, gamma, pi, l1=10, Rmax=10):
         # Add min{} operator constrints
         for i in range(k - 1):
             # Generate the costly single step constraint terms
-            constraint_rows = -1 * (Tpi - Tnotpi[i]) @ T_disc_inv
+            constraint_rows = -1 * (T[:, 0, :] - T[:, i, :]) @ T_disc_inv
 
             # constraint_rows is nxn - we need to add the min{} terms though
             min_operator_entries = np.identity(n)
@@ -191,17 +201,26 @@ def lp_irl(S, A, T, gamma, pi, l1=10, Rmax=10):
     #print(b_ub[:, 0])
 
     # Solve for a solution
-    # NB: scipy.optimize.linprog expects a 1d c vector
+    res = None
+    if method == "scipy-simplex":
+        # NB: scipy.optimize.linprog expects a 1d c vector
+        from scipy.optimize import linprog
+        res = linprog(c[0, :], A_ub=A_ub, b_ub=b_ub[:, 0], method="simplex")
 
-    # NB: for my test problems, the simplex method return nan for the true
-    # optimisation variables!
-    #res = linprog(c[0, :], A_ub=A_ub, b_ub=b_ub[:, 0], method="simplex")
-    # The interior point method seems to work though
-    res = linprog(c[0, :], A_ub=A_ub, b_ub=b_ub[:, 0],  method="interior-point")
+    elif method == "scipy-interior-point":
+        # NB: scipy.optimize.linprog expects a 1d c vector
+        from scipy.optimize import linprog
+        res = linprog(c[0, :], A_ub=A_ub, b_ub=b_ub[:, 0],  method="interior-point")
 
-    # cvxopt also works (python 3.5 only)
-    #from cvxopt import matrix, solvers
-    #res = solvers.lp(matrix(c[0, :]), matrix(A_ub), matrix(b_ub))
+    elif method == "cvxopt":
+        # NB: cvxopt.solvers.lp expects a 1d c vector
+        from cvxopt import matrix, solvers
+        res = solvers.lp(matrix(c[0, :]), matrix(A_ub), matrix(b_ub))
+
+    else:
+
+        raise Exception("Unkown LP method type: {}".format(method))
+        return None
 
 
     def normalize(vals):
@@ -221,45 +240,48 @@ def lp_irl(S, A, T, gamma, pi, l1=10, Rmax=10):
     return rewards, res
 
 
-
-
 if __name__ == "__main__":
 
-    S = np.array(["s0", "s1", "s2"])
-    A = np.array(["b", "o"])
-    T = np.array([[0,    0.4, 0.6 ],
+    """
+    # An n=3 problem
+    T = build_sorted_transition_matrix(
+        np.array(["s0", "s1", "s2"]),
+        np.array(["b", "o"]),
+        np.array([[0,    0.4, 0.6 ],
                   [0,    0,   1   ],
                   [0,    0,   1   ],
                   [0,    0,   1   ],
                   [1,    0,   0   ],
-                  [1,    0,   0   ]])
-    gamma = 0.9
-    pi = {
-        "s0": "b",
-        "s1": "o",
-        "s2": "o"
-    }
+                  [1,    0,   0   ]]),
+        {
+            "s0": "b",
+            "s1": "o",
+            "s2": "o"
+        }
+    )
+    """
 
-    ## Try a smaller (n=2) problem
-    S = np.array(["s0", "s1"])
-    T = np.array([[0.4, 0.6],
-                [0.9, 0.1],
-                [1,   0],
-                [1,   0]])
-    pi = {
-      "s0": "b",
-      "s1": "o"
-    }
+    # Try a smaller (n=2) problem
+    T = build_sorted_transition_matrix(
+        np.array(["s0", "s1"]),
+        np.array(["b", "o"]),
+        np.array([[0.4, 0.6],
+                  [0.9, 0.1],
+                  [1,   0],
+                  [1,   0]]),
+        {
+          "s0": "b",
+          "s1": "o"
+        }
+    )
+
+    # The expert's discount factor
+    gamma = 0.9
 
     # L1 norm weight
     l1=10
 
-    # Maximum reward
-    Rmax=2
-
-    print(S)
-    print(T)
-    print(pi)
-    rewards, _ = lp_irl(S, A, T, gamma, pi, l1, Rmax)
+    #print(T)
+    rewards, _ = lp_irl(T, gamma, l1)
     print(rewards)
 
