@@ -1,0 +1,9 @@
+[submodule "third-party/mathewja-inverse-reinforcement-learning"]
+	path = third-party/mathewja-inverse-reinforcement-learning
+	url = https://github.com/MatthewJA/Inverse-Reinforcement-Learning.git
+[submodule "third-party/stormmax-irl-imitation"]
+	path = third-party/stormmax-irl-imitation
+	url = https://github.com/stormmax/irl-imitation.git
+[submodule "third-party/swiffo-dynamic-programming-car-rental"]
+	path = third-party/swiffo-dynamic-programming-car-rental
+	url = https://github.com/swiffo/Dynamic-Programming-Car-Rental.git
