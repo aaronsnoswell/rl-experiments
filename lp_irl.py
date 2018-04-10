@@ -259,6 +259,8 @@ def llp_irl(S0, k, T, phi, *, m=2.0, Rmax=1.0, method="cvxopt"):
     @param method - LP programming method. One of "cvxopt", "scipy-simplex" or
         "scipy-interior-point"
 
+    NB: method == scipy-interior-point depends on scikit-learn>=0.19.1
+
     @return alpha - A vector of d coefficients for the basis functions phi(S)
         that allows rewards to be computed for a state via the inner product
         alpha · phi
