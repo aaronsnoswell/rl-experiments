@@ -39,7 +39,9 @@ def build_sorted_transition_matrix(S, A, T, pi):
 
 def lp_irl(T, gamma, l1, *, Rmax=1.0, method="cvxopt"):
     """
-    Given a transition matrix T(s, a, s') encoding a stationary deterministic
+    Implements Linear Programming IRL by NG and Abbeel, 2000
+
+    Given a transition matrix T(s, a, s') encoding a stationary, deterministic
     policy and a discount factor gamma finds a reward vector R(s) for which
     the policy is optimal.
 
@@ -63,7 +65,6 @@ def lp_irl(T, gamma, l1, *, Rmax=1.0, method="cvxopt"):
 
     TODO: Adjust L1 norm constraint generation to allow negative rewards in
     the final vector. 
-
     """
 
     # Measure size of state and action sets
@@ -78,9 +79,9 @@ def lp_irl(T, gamma, l1, *, Rmax=1.0, method="cvxopt"):
     # c, A_ub, b_ub = f(c, A_ub, b_ub)
 
     # Prepare LP constraint matrices
-    c = np.empty(shape=[1, n], dtype=float)
-    A_ub = np.empty(shape=[0, n], dtype=float)
-    b_ub = np.empty(shape=[0, 1])
+    c = np.zeros(shape=[1, n], dtype=float)
+    A_ub = np.zeros(shape=[0, n], dtype=float)
+    b_ub = np.zeros(shape=[0, 1])
 
 
     def add_optimal_policy_constraints(c, A_ub, b_ub):
@@ -112,7 +113,7 @@ def lp_irl(T, gamma, l1, *, Rmax=1.0, method="cvxopt"):
         # Don't forget to resize the A_ub matrix to match
         A_ub = np.hstack((A_ub, np.zeros(shape=[A_ub.shape[0], n])))
 
-        # Add min{} operator constrints
+        # Add min{} operator constraints
         for i in range(k - 1):
             # Generate the costly single step constraint terms
             constraint_rows = -1 * (T[:, 0, :] - T[:, i, :]) @ T_disc_inv
@@ -240,9 +241,114 @@ def lp_irl(T, gamma, l1, *, Rmax=1.0, method="cvxopt"):
     return rewards, res
 
 
+def llp_irl(S0, k, T, phi, *, m=2.0, Rmax=1.0, method="cvxopt"):
+    """
+    Implements Linear Programming IRL for large state spaces by NG and Abbeel,
+        2000
+    
+    @param S0 - A sampled sub-set of the full state-space S
+    @param k - The number of actions |A|
+    @param T - A sampling transition function T(s, a) taking from a state
+        (continuous) and action (discrete) and giving a new state
+    @param phi - A vector of d basis functions phi_d(s) mapping from S to the
+        reals
+    @param m - Penalty function coefficient. Ng and Abbeel find m=2 is robust
+    @param p - A penalty function that weights violations of the LP
+        constraints
+    @param Rmax - Maximum reward value
+    @param method - LP programming method. One of "cvxopt", "scipy-simplex" or
+        "scipy-interior-point"
+
+    @return alpha - A vector of d coefficients for the basis functions phi(S)
+        that allows rewards to be computed for a state via the inner product
+        alpha · phi
+    """
+
+    # Measure number of sampled states and number of basis functions
+    n = len(S0)
+    d = len(phi)
+
+    # Lambda for the penalty function
+    penalty = lambda x: x if x >= 0 else m*x
+
+
+    def E(fn, *, N=1000):
+        """
+        Helper function to compute an Expectation E[fn()]
+        """
+        return sum([fn() for n in N]) / N
+
+
+    # Formulate the linear programming problem constraints
+    # NB: The general form for adding a constraint looks like this
+    # c, A_ub, b_ub = f(c, A_ub, b_ub)
+
+    # Prepare LP constraint matrices
+    c = np.zeros(shape=[1, d], dtype=float)
+    A_ub = np.zeros(shape=[0, d], dtype=float)
+    b_ub = np.zeros(shape=[0, 1])
+
+
+    def add_costly_single_step_constraints(c, A_ub, b_ub):
+        """
+        Augment the optimisation objective to add the costly-single-step
+        degeneracy heuristic
+        This will add n extra optimisation variables and (k-1) * n extra
+        constraints
+        """
+
+        # Extend the objective vector c to add one extra optimisation variable
+        # per sampled state (because we sum over all sampled states)
+        c = np.hstack((c, -1 * np.ones(shape=[1, n])))
+        css_offset = c.shape[1] - n
+        A_ub = np.hstack((A_ub, np.zeros(shape=[A_ub.shape[0], n])))
+
+        # And extend again, adding extra optimisation variables for every
+        # entry in the min{} operator, for every sampled state
+        c = np.hstack((c, -1 * np.ones(shape=[1, n * k])))
+        cmin_offset = c.shape[1] - n * k
+        A_ub = np.hstack((A_ub, np.zeros(shape=[A_ub.shape[0], n * k])))
+
+        # Iterate over each sampled state
+        for si, s in enumerate(S0):
+
+            # Iterate over non-expert actions
+            for a in range(k):
+
+                # Compute the penalised expected value difference somehow...
+                # p(E(Vpi(T(s, 0))) - E(Vpi(T(s, a))))
+
+
+
+
+
+
+
+    def add_alpha_size_constraints(c, A_ub, b_ub):
+        """
+        Add constraints for a maximum alpha value of 1
+        This will add d extra constraints
+        """
+        for i in range(d):
+            constraint_row = [0] * A_ub.shape[1]
+            constraint_row[i] = 1
+            A_ub = np.vstack((A_ub, constraint_row))
+            b_ub = np.vstack((b_ub, 1))
+        return c, A_ub, b_ub
+
+
+    # Compose LP optimisation problem
+    c, A_ub, b_ub = add_alpha_size_constraints(c, A_ub, b_ub)
+
+
+
+
+
+
 if __name__ == "__main__":
 
-    """
+
+    """ Sample problems for lp_irl
     # An n=3 problem
     T = build_sorted_transition_matrix(
         np.array(["s0", "s1", "s2"]),
@@ -259,7 +365,6 @@ if __name__ == "__main__":
             "s2": "o"
         }
     )
-    """
 
     # Try a smaller (n=2) problem
     T = build_sorted_transition_matrix(
@@ -275,13 +380,61 @@ if __name__ == "__main__":
         }
     )
 
-    # The expert's discount factor
-    gamma = 0.9
-
-    # L1 norm weight
-    l1=10
-
+    # Try LP IRL
     #print(T)
-    rewards, _ = lp_irl(T, gamma, l1)
+    #rewards, _ = lp_irl(T, 0.9, l1=10)
     print(rewards)
+    """
+
+    # A sample problem for llp_irl
+
+    # Sample to build a sub-set of state space
+    n = 100
+    S0 = np.random.normal(0, 5, n)
+
+    # Define a sampling transition function
+    def T(s, a):
+        """
+        A continuous analog of the 2-state discrete MDP above
+        """
+        if s < 0:
+            # In 'state 1'
+            if a == 0:
+                # Expert policy from s0
+                return np.random.choice([-0.5, 0.5], p=[0.4, 0.6])
+            else:
+                # Non-expert action from s0
+                return np.random.choice([-0.5, 0.5], p=[0.9, 0.1])
+        else:
+            # In 'state 2'
+            if a == 0:
+                # Expert policy from s1
+                return np.random.choice([-0.5, 0.5], p=[1, 0])
+            else:
+                # Non-expert action from s1
+                return np.random.choice([-0.5, 0.5], p=[1, 0])
+
+
+    def normal(mu, sigma):
+        """
+        1D Normal function
+        """
+        return math.exp(-0.5 * ((x - mu) / sigma) ^ 2) / \
+            (sigma * math.sqrt(2 * math.pi))
+
+
+    # Use a set of normal radial basis functions
+    phi = [
+        lambda s: normal(-0.5, 0.25),
+        lambda s: normal(0.5, 0.25)
+    ]
+
+    # Try LLP IRL
+    alpha = rewards, _ = llp_irl(S0, 2, T, phi)
+
+    # Compose reward function R(s)
+    R = lambda s: np.inner(alpha, [p(s) for p in phi])
+
+    # Test reward function
+    print([R(-0.5), R(0.5)])
 
