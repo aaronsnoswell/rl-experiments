@@ -4,6 +4,7 @@ Implementation of Linear Programming IRL by Ng and Abbeel, 2000
 """
 
 import math
+import copy
 import numpy as np
 
 
@@ -50,9 +51,9 @@ def lp_irl(T, gamma, l1, *, Rmax=1.0, method="cvxopt"):
     https://www.inf.ed.ac.uk/teaching/courses/rl/slides17/8_IRL.pdf for a more
     accessible overview.
 
-    @param T - A sorted transition matrix T(S, a, s') encoding a stationary
+    @param T - A sorted transition matrix T(s, a, s') encoding a stationary
         deterministic policy. The structure of T must be that the 0th action
-        T[:, 0, :] corresponds to the expert policy, and T[:, i, :], i!=0
+        T[:, 0, :] corresponds to the expert policy, and T[:, i, :], i != 0
         corresponds to the ith non-expert action at each state
     @param gamma - The expert's discount factor
     @param l1 - L1 regularization weight for LP optimisation objective
@@ -61,7 +62,8 @@ def lp_irl(T, gamma, l1, *, Rmax=1.0, method="cvxopt"):
     @param method - LP programming method. One of "cvxopt", "scipy-simplex" or
         "scipy-interior-point"
 
-    @return Reward vector for which the given policy is optimal
+    @return A reward vector for which the given policy is optimal
+    @return A result object from the optimiser
 
     TODO: Adjust L1 norm constraint generation to allow negative rewards in
     the final vector. 
@@ -251,42 +253,50 @@ def llp_irl(S0, k, T, phi, *, m=2.0, Rmax=1.0, method="cvxopt"):
     
     @param S0 - A sampled sub-set of the full state-space S
     @param k - The number of actions |A|
-    @param T - A sampling transition function T(s, a) taking from a state
-        (continuous) and action (discrete) and giving a new state
-    @param phi - A vector of d basis functions phi_d(s) mapping from S to the
+    @param T - A sampling transition function T(s, ai) -> s' encoding a
+        stationary deterministic policy. The structure of T must be that the
+        0th action T(:, 0) corresponds to a sample from the expert policy, and
+        T(:, i), i != 0 corresponds to a sample from the ith non-expert action
+        at each state, for some arbitrary but consistent ordering of states
+    @param phi - A vector of d basis functions phi_i(s) mapping from S to the
         reals
     @param m - Penalty function coefficient. Ng and Abbeel find m=2 is robust
-    @param p - A penalty function that weights violations of the LP
-        constraints
     @param Rmax - Maximum reward value
     @param method - LP programming method. One of "cvxopt", "scipy-simplex" or
         "scipy-interior-point"
 
     NB: method == scipy-interior-point depends on scikit-learn>=0.19.1
 
-    @return alpha - A vector of d coefficients for the basis functions phi(S)
+    @return A vector of d coefficients for the basis functions phi(S)
         that allows rewards to be computed for a state via the inner product
         alpha · phi
+    @return A result object from the optimiser
     """
 
     # Measure number of sampled states and number of basis functions
-    n = len(S0)
+    N = len(S0)
     d = len(phi)
 
     # Lambda for the penalty function
     penalty = lambda x: x if x >= 0 else m*x
 
+    # Compute E[phi(expert_s') - phi(non_expert_s')] for all non-expert
+    # policies
+    phi_tensor = np.zeros(shape=(d, k-1))
+    for s in S0:
+        expert_new_state = T(s, 0)
 
-    def E(fn, *, N=1000):
-        """
-        Helper function to compute an Expectation E[fn()]
-        """
-        return sum([fn() for n in N]) / N
+        for non_expert_action in range(k - 1):
+            non_expert_new_state = T(s, non_expert_action + 1)
+
+            phi_tensor[:, non_expert_action] += [phi_i(expert_new_state) - phi_i(non_expert_new_state) for phi_i in phi]
+        phi_tensor /= N
 
 
     # Formulate the linear programming problem constraints
     # NB: The general form for adding a constraint looks like this
     # c, A_ub, b_ub = f(c, A_ub, b_ub)
+
 
     # Prepare LP constraint matrices
     c = np.zeros(shape=[1, d], dtype=float)
@@ -315,18 +325,13 @@ def llp_irl(S0, k, T, phi, *, m=2.0, Rmax=1.0, method="cvxopt"):
         A_ub = np.hstack((A_ub, np.zeros(shape=[A_ub.shape[0], n * k])))
 
         # Iterate over each sampled state
-        for si, s in enumerate(S0):
+        # for si, s in enumerate(S0):
 
-            # Iterate over non-expert actions
-            for a in range(k):
+        #     # Iterate over non-expert actions
+        #     for a in range(k):
 
-                # Compute the penalised expected value difference somehow...
-                # p(E(Vpi(T(s, 0))) - E(Vpi(T(s, a))))
-
-
-
-
-
+        #         # Compute the penalised expected value difference somehow...
+        #         # p(E(Vpi(T(s, 0))) - E(Vpi(T(s, a))))
 
 
     def add_alpha_size_constraints(c, A_ub, b_ub):
@@ -352,8 +357,8 @@ def llp_irl(S0, k, T, phi, *, m=2.0, Rmax=1.0, method="cvxopt"):
 
 if __name__ == "__main__":
 
-
-    """ Sample problems for lp_irl
+    """
+    # Sample problems for lp_irl
     # An n=3 problem
     T = build_sorted_transition_matrix(
         np.array(["s0", "s1", "s2"]),
@@ -386,60 +391,112 @@ if __name__ == "__main__":
     )
 
     # Try LP IRL
-    #print(T)
-    #rewards, _ = lp_irl(T, 0.9, l1=10)
+    print(T)
+    rewards, _ = lp_irl(T, 0.9, l1=10)
     print(rewards)
     """
 
-    # A sample problem for llp_irl
+    # Construct an IRL problem from the MountainCar benchmark
+    import gym
+    env = gym.make('MountainCar-v0')
 
-    # Sample to build a sub-set of state space
-    n = 100
-    S0 = np.random.normal(0, 5, n)
+    # Sample to build state set
+    S0 = []
+    N = 1000
+    for ni in range(N):
+        S0.append(np.random.uniform(
+            low=env.unwrapped.low,
+            high=env.unwrapped.high
+        ))
 
-    # Define a sampling transition function
-    def T(s, a):
-        """
-        A continuous analog of the 2-state discrete MDP above
-        """
-        if s < 0:
-            # In 'state 1'
-            if a == 0:
-                # Expert policy from s0
-                return np.random.choice([-0.5, 0.5], p=[0.4, 0.6])
-            else:
-                # Non-expert action from s0
-                return np.random.choice([-0.5, 0.5], p=[0.9, 0.1])
-        else:
-            # In 'state 2'
-            if a == 0:
-                # Expert policy from s1
-                return np.random.choice([-0.5, 0.5], p=[1, 0])
-            else:
-                # Non-expert action from s1
-                return np.random.choice([-0.5, 0.5], p=[1, 0])
+    # There are three possible actions
+    action_set = [0, 1, 2]
+    k = len(action_set)
+
+    # A simple 'expert' policy that solves the mountain car problem
+    simple_policy = lambda s: 0 if (s[1] - 0.003) < 0 else 2
+
+    # Transition function
+    def T(s, action_index):
+        env.reset()
+        env.unwrapped.state = s
+
+        # Find the expert action at our current state
+        expert_action = simple_policy(s)
+        non_expert_action_set = copy.copy(action_set)
+        non_expert_action_set.remove(expert_action)
+
+        possible_action_set = [expert_action] +  non_expert_action_set
+
+        observation, reward, done, info = env.step(possible_action_set[action_index])
+        return observation
 
 
     def normal(mu, sigma):
         """
         1D Normal function
         """
-        return math.exp(-0.5 * ((x - mu) / sigma) ^ 2) / \
-            (sigma * math.sqrt(2 * math.pi))
+
+        return lambda x: math.exp(-1 * ((x - mu) ** 2) / (2 * sigma ** 2)) / \
+            math.sqrt(2 * math.pi * sigma ** 2)
 
 
-    # Use a set of normal radial basis functions
+    # Build basis function set
+    d = 26
+    simga = 0.5
+    min_pos = env.unwrapped.min_position
+    max_pos = env.unwrapped.max_position
+    step = (max_pos - min_pos) / d
     phi = [
-        lambda s: normal(-0.5, 0.25),
-        lambda s: normal(0.5, 0.25)
+        lambda s: normal(mu, simga)(s[0]) for mu in np.arange(
+            min_pos + step/2, max_pos + step/2, step
+        )
     ]
 
-    # Try LLP IRL
-    alpha = rewards, _ = llp_irl(S0, 2, T, phi)
+    llp_irl(S0, k, T, phi)
 
-    # Compose reward function R(s)
-    R = lambda s: np.inner(alpha, [p(s) for p in phi])
 
-    # Test reward function
-    print([R(-0.5), R(0.5)])
+    # # A sample problem for llp_irl
+
+    # # Sample to build a sub-set of state space
+    # n = 100
+    # S0 = np.random.normal(0, 5, n)
+
+    # # Define a sampling transition function
+    # def T(s, a):
+    #     """
+    #     A continuous analog of the 2-state discrete MDP above
+    #     """
+    #     if s < 0:
+    #         # In 'state 1'
+    #         if a == 0:
+    #             # Expert policy from s0
+    #             return np.random.choice([-0.5, 0.5], p=[0.4, 0.6])
+    #         else:
+    #             # Non-expert action from s0
+    #             return np.random.choice([-0.5, 0.5], p=[0.9, 0.1])
+    #     else:
+    #         # In 'state 2'
+    #         if a == 0:
+    #             # Expert policy from s1
+    #             return np.random.choice([-0.5, 0.5], p=[1, 0])
+    #         else:
+    #             # Non-expert action from s1
+    #             return np.random.choice([-0.5, 0.5], p=[1, 0])
+
+
+    # # Use a set of normal radial basis functions
+    # phi = [
+    #     lambda s: normal(-0.5, 0.25),
+    #     lambda s: normal(0.5, 0.25)
+    # ]
+
+    # # Try LLP IRL
+    # alpha = rewards, _ = llp_irl(S0, 2, T, phi)
+
+    # # Compose reward function R(s)
+    # R = lambda s: np.inner(alpha, [p(s) for p in phi])
+
+    # # Test reward function
+    # print([R(-0.5), R(0.5)])
 
