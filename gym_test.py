@@ -1,86 +1,138 @@
 
 import gym
+import copy
+import numpy as np
+import matplotlib.pyplot as plt
+
 from pyglet.window import key
 
-env = gym.make('MountainCarContinuous-v0')
-env.reset()
 
-# Render once to construct visualisation objects
-env.render()
+def run_episode(policy):
+    """
+    Runs one episode of mountain car using the given policy
 
-# Attach keyboard handler
-key_handler = key.KeyStateHandler()
-env.unwrapped.viewer.window.push_handlers(key_handler)
+    @param policy - A function f(observation, *, kh) -> action mapping
+        observations to actions. The kh parameter is a
+        pyglet.window.key.KeyStateHandler instance that can be used to detect
+        key presses in the rendering window
+    """
+    env = gym.make('MountainCarContinuous-v0')
 
-# Collect a few expert trajectories
-expert_trajectories = []
-num_trajectories = 5
+    # Shorten episode length
+    env._max_episode_steps = 200
+    
+    env.reset()
 
-for i in range(num_trajectories):
-    expert_trajectories.append([])
+    # Render once to construct visualisation objects
+    env.render()
 
-    next_action = [0]
-    per_step_action_inc = 0.05
-    action_decay = 0.99
+    # Attach keyboard handler
+    key_handler = key.KeyStateHandler()
+    env.unwrapped.viewer.window.push_handlers(key_handler)
 
     t = 0
     cumulative_reward = 0
+    observation = [0, 0]
+    trajectory = []
     while True:
         env.render()
 
-        # Take a random step
-        #env.step(env.action_space.sample())
-
-        # Get next action from user
-        next_action[0] *= action_decay
-        if key_handler[key.LEFT] and not key_handler[key.RIGHT]:
-            next_action[0] = min(next_action[0] - per_step_action_inc, env.unwrapped.min_action)
-        elif not key_handler[key.LEFT] and key_handler[key.RIGHT]:
-            next_action[0] = max(next_action[0] + per_step_action_inc, env.unwrapped.max_action)
-        observation, reward, done, info = env.step(next_action)
+        # Get next action from policy
+        action = policy(observation, env, key_handler)
+        observation, reward, done, info = env.step(action)
         cumulative_reward += reward
-
-        print("@t={}, r={:.2f}, c={:.2f}".format(t, reward, cumulative_reward))
-
-        # Record taken action
-        expert_trajectories[i].append((observation, next_action[0]))
+        trajectory.append((observation, copy.copy(action)))
 
         if done:
             break
 
         t += 1
 
-    env.reset()
+    env.close()
 
-print("Done")
+    return t, cumulative_reward, trajectory
 
 
-# Plot sampled expert policy
 
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.pyplot as plt
+def simple_policy(observation, env, key_handler, *, q=-0.003):
+    """
+    A simple policy that solves the mountain car problem
+    """
 
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
+    # Sign function
+    sgn = lambda x: -1 if x < 0 else 1
 
-# Plot each trajectory
-for traj in expert_trajectories:
+    position, velocity = observation
+    
+    return [sgn(velocity + q)]
+
+
+def manual_control_policy(observation, env, key_handler):
+    """
+    Manual control policy
+    """
+
+    # Constants
+    action_decay = 0.9
+    per_step_action_inc = 0.1
+
+    # Set static variable for next action
+    if "next_action" not in manual_control_policy.__dict__:
+        manual_control_policy.next_action = [0]
+
+    # Get next action from user
+    manual_control_policy.next_action[0] *= action_decay
+    if key_handler[key.LEFT] and not key_handler[key.RIGHT]:
+        manual_control_policy.next_action[0] = max(
+            manual_control_policy.next_action[0] - per_step_action_inc,
+            env.unwrapped.min_action
+        )
+    elif not key_handler[key.LEFT] and key_handler[key.RIGHT]:
+        manual_control_policy.next_action[0] = min(
+            manual_control_policy.next_action[0] + per_step_action_inc,
+            env.unwrapped.max_action
+        )
+
+    return manual_control_policy.next_action
+
+
+def plot(traj):
+    """
+    Plots a sampled trajectory
+    """
+
+    from mpl_toolkits.mplot3d import Axes3D
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    positions = [pt[0][0] for pt in traj]
+    velocities = [pt[0][1] for pt in traj]
+    actions = [pt[1][0] for pt in traj]
+
     ax.plot(
-        [pt[0][0] for pt in traj],
-        [pt[0][1] for pt in traj],
-        [0 for pt in traj],
+        positions,
+        velocities,
+        actions,
         '*-'
     )
 
-ax.set_xlabel('Position')
-ax.set_ylabel('Velocity')
-ax.set_zlabel('Action')
+    ax.set_xlabel('Position')
+    ax.set_ylabel('Velocity')
+    ax.set_zlabel('Action')
 
-plt.axis([
-        env.unwrapped.min_position,
-        env.unwrapped.max_position,
-        -env.unwrapped.max_speed,
-        env.unwrapped.max_speed
-    ]
-)
-plt.show()
+    plt.axis([
+            -1.2,
+            0.6,
+            -0.07,
+            0.07
+        ]
+    )
+    plt.show()
+
+
+if __name__ == "__main__":
+
+    t, cr, traj = run_episode(simple_policy)
+    #plot(traj)
+    #plt.title("Simple policy trace")
