@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from pyglet.window import key
 
 
-def run_episode(policy):
+def run_episode(policy, *, continuous=False):
     """
     Runs one episode of mountain car using the given policy
 
@@ -16,7 +16,22 @@ def run_episode(policy):
         pyglet.window.key.KeyStateHandler instance that can be used to detect
         key presses in the rendering window
     """
-    env = gym.make('MountainCarContinuous-v0')
+    env = gym.make('MountainCar-v0')
+
+    # Dictionary converting actions
+    actions = {
+        -1: 0,
+        0: 1,
+        1: 2
+    }
+
+    if continuous:
+        env = gym.make('MountainCarContinuous-v0')
+        actions = {
+           -1: [-1],
+           0: [0],
+           1: [1]
+        }
 
     # Shorten episode length
     env._max_episode_steps = 200
@@ -38,9 +53,12 @@ def run_episode(policy):
         env.render()
 
         # Get next action from policy
-        action = policy(observation, env, key_handler)
+        action = actions[policy(observation, env, key_handler)[0]]
         observation, reward, done, info = env.step(action)
         cumulative_reward += reward
+
+        if continuous:
+            action = action[0]
         trajectory.append((observation, copy.copy(action)))
 
         if done:
@@ -51,7 +69,6 @@ def run_episode(policy):
     env.close()
 
     return t, cumulative_reward, trajectory
-
 
 
 def simple_policy(observation, env, key_handler, *, q=-0.003):
@@ -108,7 +125,7 @@ def plot(traj):
 
     positions = [pt[0][0] for pt in traj]
     velocities = [pt[0][1] for pt in traj]
-    actions = [pt[1][0] for pt in traj]
+    actions = [pt[1] for pt in traj]
 
     ax.plot(
         positions,
@@ -134,5 +151,4 @@ def plot(traj):
 if __name__ == "__main__":
 
     t, cr, traj = run_episode(simple_policy)
-    #plot(traj)
-    #plt.title("Simple policy trace")
+    plot(traj)
