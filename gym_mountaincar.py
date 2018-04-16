@@ -18,20 +18,8 @@ def run_episode(policy, *, continuous=False):
     """
     env = gym.make('MountainCar-v0')
 
-    # Dictionary converting actions
-    actions = {
-        -1: 0,
-        0: 1,
-        1: 2
-    }
-
     if continuous:
         env = gym.make('MountainCarContinuous-v0')
-        actions = {
-           -1: [-1],
-           0: [0],
-           1: [1]
-        }
 
     # Shorten episode length
     env._max_episode_steps = 200
@@ -53,12 +41,22 @@ def run_episode(policy, *, continuous=False):
         env.render()
 
         # Get next action from policy
-        action = actions[policy(observation, env, key_handler)[0]]
-        observation, reward, done, info = env.step(action)
-        cumulative_reward += reward
+        action = policy(observation, env, key_handler)
+        step_action = None
+
+        if not continuous:
+            # Round action to nearest int, and offset to get an index
+            action = min(max(round(action), -1), 1)
+            step_action = action + 1
 
         if continuous:
-            action = action[0]
+            # Continuous version uses actions on [-1, 1]
+            action = min(max(action, -1), 1)
+            step_action = [float(action)]
+
+        observation, reward, done, info = env.step(step_action)
+        cumulative_reward += reward
+
         trajectory.append((observation, copy.copy(action)))
 
         if done:
@@ -81,36 +79,36 @@ def simple_policy(observation, env, key_handler, *, q=-0.003):
 
     position, velocity = observation
     
-    return [sgn(velocity + q)]
+    return sgn(velocity + q)
 
 
-def manual_control_policy(observation, env, key_handler):
+def manual_policy(observation, env, key_handler):
     """
     Manual control policy
     """
 
     # Constants
-    action_decay = 0.9
-    per_step_action_inc = 0.1
+    step_inc = 0.1
+    decay = 0.9
 
     # Set static variable for next action
-    if "next_action" not in manual_control_policy.__dict__:
-        manual_control_policy.next_action = [0]
+    if "action" not in manual_control_policy.__dict__:
+        manual_control_policy.action = 0
 
     # Get next action from user
-    manual_control_policy.next_action[0] *= action_decay
+    manual_control_policy.action *= 0.9
     if key_handler[key.LEFT] and not key_handler[key.RIGHT]:
-        manual_control_policy.next_action[0] = max(
-            manual_control_policy.next_action[0] - per_step_action_inc,
-            env.unwrapped.min_action
+        manual_control_policy.action = max(
+            manual_control_policy.action - step_inc,
+            -1
         )
     elif not key_handler[key.LEFT] and key_handler[key.RIGHT]:
-        manual_control_policy.next_action[0] = min(
-            manual_control_policy.next_action[0] + per_step_action_inc,
-            env.unwrapped.max_action
+        manual_control_policy.action = min(
+            manual_control_policy.action + step_inc,
+            1
         )
 
-    return manual_control_policy.next_action
+    return manual_control_policy.action
 
 
 def plot(traj):
@@ -150,5 +148,6 @@ def plot(traj):
 
 if __name__ == "__main__":
 
-    t, cr, traj = run_episode(simple_policy)
+    t, cr, traj = run_episode(simple_policy, continuous=False)
+    #t, cr, traj = run_episode(manual_policy, continuous=False)
     plot(traj)
