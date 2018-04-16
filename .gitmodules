@@ -7,3 +7,6 @@
 [submodule "third-party/swiffo-dynamic-programming-car-rental"]
 	path = third-party/swiffo-dynamic-programming-car-rental
 	url = https://github.com/swiffo/Dynamic-Programming-Car-Rental.git
+[submodule "third-party/openai-gym"]
+	path = third-party/openai-gym
+	url = https://github.com/openai/gym
