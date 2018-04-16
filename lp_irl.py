@@ -245,6 +245,9 @@ def llp_irl(S0, k, T, phi, *, m=2.0, Rmax=1.0, method="cvxopt"):
     """
     Implements Linear Programming IRL for large state spaces by NG and Abbeel,
         2000
+
+    See https://thinkingwires.com/posts/2018-02-13-irl-tutorial-1.html for a
+        good reference.
     
     @param S0 - A sampled sub-set of the full state-space S
     @param k - The number of actions |A|
