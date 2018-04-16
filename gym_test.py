@@ -22,7 +22,7 @@ cumulative_reward = 0
 while True:
     env.render()
 
-    # Take a randome step
+    # Take a random step
     #env.step(env.action_space.sample())
 
     # Get next action from user
