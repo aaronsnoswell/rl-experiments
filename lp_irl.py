@@ -111,8 +111,6 @@ def lp_irl(T, gamma, l1, *, Rmax=1.0, method="cvxopt"):
         # Expand the c vector add new terms for the min{} operator
         c = np.hstack((c, -1 * np.ones(shape=[1, n])))
         css_offset = c.shape[1] - n
-
-        # Don't forget to resize the A_ub matrix to match
         A_ub = np.hstack((A_ub, np.zeros(shape=[A_ub.shape[0], n])))
 
         # Add min{} operator constraints
@@ -281,7 +279,9 @@ def llp_irl(S0, k, T, phi, *, m=2.0, Rmax=1.0, method="cvxopt"):
     penalty = lambda x: x if x >= 0 else m*x
 
     # Compute E[phi(expert_s') - phi(non_expert_s')] for all non-expert
-    # policies
+    # policies. The phi_tensor[:, i] is the vector
+    # (phi(s_expert') - phi(s_non_expert_i')) / N, where N is the number of
+    # sampled states the expectation is computed over
     phi_tensor = np.zeros(shape=(d, k-1))
     for s in S0:
         expert_new_state = T(s, 0)
@@ -295,16 +295,10 @@ def llp_irl(S0, k, T, phi, *, m=2.0, Rmax=1.0, method="cvxopt"):
 
     # Formulate the linear programming problem constraints
     # NB: The general form for adding a constraint looks like this
-    # c, A_ub, b_ub = f(c, A_ub, b_ub)
+    # c, A_ub, b_ub, A_eq, b_eq = f(c, A_ub, b_ub, A_eq, b_eq)
 
 
-    # Prepare LP constraint matrices
-    c = np.zeros(shape=[1, d], dtype=float)
-    A_ub = np.zeros(shape=[0, d], dtype=float)
-    b_ub = np.zeros(shape=[0, 1])
-
-
-    def add_costly_single_step_constraints(c, A_ub, b_ub):
+    def add_costly_single_step_constraints(c, A_ub, b_ub, A_eq, b_eq):
         """
         Augment the optimisation objective to add the costly-single-step
         degeneracy heuristic
@@ -312,43 +306,108 @@ def llp_irl(S0, k, T, phi, *, m=2.0, Rmax=1.0, method="cvxopt"):
         constraints
         """
 
-        # Extend the objective vector c to add one extra optimisation variable
-        # per sampled state (because we sum over all sampled states)
-        c = np.hstack((c, -1 * np.ones(shape=[1, n])))
-        css_offset = c.shape[1] - n
-        A_ub = np.hstack((A_ub, np.zeros(shape=[A_ub.shape[0], n])))
+        # Extend the optimisation function, adding extra optimisation
+        # variables for every entry in the min{} operator
+        
+        #c_size = c.shape[1]
+        #for non_expert_action in range(k-1):
+        #    c = np.hstack([c, [phi_tensor[:, non_expert_action].T]])
+        #    A_ub = np.hstack([A_ub, np.zeros(shape=[A_ub.shape[0], k])])
+        #    A_eq = np.hstack([A_eq, np.zeros(shape=[A_eq.shape[0], k])])
 
-        # And extend again, adding extra optimisation variables for every
-        # entry in the min{} operator, for every sampled state
-        c = np.hstack((c, -1 * np.ones(shape=[1, n * k])))
-        cmin_offset = c.shape[1] - n * k
-        A_ub = np.hstack((A_ub, np.zeros(shape=[A_ub.shape[0], n * k])))
+        # Add constraints to enforce the min{} operator
+        # for ki in range(k-1):
+        #     constraint_row = np.zeros(shape=[A_ub.shape[1]])
+        #     constraint_row[min_offset] = 1
+        #     constraint_row[min_offset + 1 + ki] = -1
+        #     A_ub = np.vstack([A_ub, constraint_row])
+        #     b_ub = np.vstack([b_ub, 0])
 
-        # Iterate over each sampled state
-        # for si, s in enumerate(S0):
+        # Add 
 
-        #     # Iterate over non-expert actions
-        #     for a in range(k):
-
-        #         # Compute the penalised expected value difference somehow...
-        #         # p(E(Vpi(T(s, 0))) - E(Vpi(T(s, a))))
+        return c, A_ub, b_ub, A_eq, b_eq
 
 
-    def add_alpha_size_constraints(c, A_ub, b_ub):
+
+    def add_penalty_function_constraints(c, A_ub, b_ub, A_eq, b_eq, m=m):
+        """
+        Augments the objective function and adds constraints to account for
+        a penalty function p(x) = x if x > 0 else m*x
+        
+        This will add |c| optimisation variables and |c| * 3 constraints
+
+        NB: This function must be called after any LP constraints for it's
+        arguments have been applied
+
+        NB: Assumes the true optimisation variables are first in the c vector
+        """
+
+        # The penalty function is piecewise linear, with two pieces
+        # Therefore we double the objective function terms, and apply the
+        # appropriate constraint to each piece
+        c_size = c.shape[1]
+        c = np.hstack([c, m * c])
+        A_ub = np.hstack((A_ub, np.zeros(shape=[A_ub.shape[0], c_size])))
+        A_eq = np.hstack([A_eq, np.zeros(shape=[A_eq.shape[0], c_size])])
+
+        # Add the constraints for the >= 0 part of the penalty function
+        for i in range(d):
+            constraint_row = np.zeros(shape=[A_ub.shape[1]])
+            constraint_row[i] = -1
+            A_ub = np.vstack([A_ub, constraint_row])
+            b_ub = np.vstack([b_ub, 0])
+
+        # Add the constraints for the < 0 part of the penalty function
+        for i in range(d):
+            constraint_row = np.zeros(shape=[A_ub.shape[1]])
+            constraint_row[c_size + i] = 1
+            A_ub = np.vstack([A_ub, constraint_row])
+            b_ub = np.vstack([b_ub, 0])
+
+        # Enforce that the alpha_i's must be equal on each side of the penalty
+        # function
+        for i in range(d):
+            constraint_row = np.zeros(shape=[A_eq.shape[1]])
+            constraint_row[i] = 1
+            constraint_row[c_size + i] = -1
+            A_eq = np.vstack([A_eq, constraint_row])
+            b_eq = np.vstack([b_eq, 0])
+
+        return c, A_ub, b_ub, A_eq, b_eq
+
+
+    def add_alpha_size_constraints(c, A_ub, b_ub, A_eq, b_eq):
         """
         Add constraints for a maximum alpha value of 1
         This will add d extra constraints
+
+        NB: Assumes the true optimisation variables are first in the c vector
         """
         for i in range(d):
             constraint_row = [0] * A_ub.shape[1]
             constraint_row[i] = 1
             A_ub = np.vstack((A_ub, constraint_row))
             b_ub = np.vstack((b_ub, 1))
-        return c, A_ub, b_ub
+        return c, A_ub, b_ub, A_eq, b_eq
 
+
+    # Prepare LP constraint matrices
+    c = np.zeros(shape=[1, d], dtype=float)
+    A_ub = np.zeros(shape=[0, d], dtype=float)
+    b_ub = np.zeros(shape=[0, 1])
+    A_eq = np.zeros(shape=[0, d], dtype=float)
+    b_eq = np.zeros(shape=[0, 1])
 
     # Compose LP optimisation problem
-    c, A_ub, b_ub = add_alpha_size_constraints(c, A_ub, b_ub)
+    c, A_ub, b_ub, A_eq, b_eq = add_costly_single_step_constraints(c, A_ub, b_ub, A_eq, b_eq)
+    #c, A_ub, b_ub, A_eq, b_eq = add_penalty_function_constraints(c, A_ub, b_ub, A_eq, b_eq)
+    #c, A_ub, b_ub, A_eq, b_eq = add_alpha_size_constraints(c, A_ub, b_ub, A_eq, b_eq)
+
+    print(c)
+    print(A_ub)
+    print(b_ub)
+    print(A_eq)
+    print(b_eq)
 
 
 
@@ -432,23 +491,23 @@ if __name__ == "__main__":
         return observation
 
 
-    def normal(mu, sigma):
+    def normal(mu, sigma, x):
         """
         1D Normal function
         """
 
-        return lambda x: math.exp(-1 * ((x - mu) ** 2) / (2 * sigma ** 2)) / \
+        return math.exp(-1 * ((x - mu) ** 2) / (2 * sigma ** 2)) / \
             math.sqrt(2 * math.pi * sigma ** 2)
 
 
     # Build basis function set
-    d = 26
+    d = 4
     simga = 0.5
     min_pos = env.unwrapped.min_position
     max_pos = env.unwrapped.max_position
     step = (max_pos - min_pos) / d
     phi = [
-        lambda s: normal(mu, simga)(s[0]) for mu in np.arange(
+        lambda s: normal(mu, simga, s[0]) for mu in np.arange(
             min_pos + step/2, max_pos + step/2, step
         )
     ]
