@@ -1,5 +1,5 @@
 """
-Implementation of Linear Programming IRL by Ng and Abbeel, 2000
+Implementation of Linear Programming IRL by Ng and Russell, 2000
 (c) 2018 Aaron Snoswell
 """
 
@@ -40,13 +40,13 @@ def build_sorted_transition_matrix(S, A, T, pi):
 
 def lp_irl(T, gamma, l1, *, Rmax=1.0, method="cvxopt"):
     """
-    Implements Linear Programming IRL by NG and Abbeel, 2000
+    Implements Linear Programming IRL by NG and Russell, 2000
 
     Given a transition matrix T(s, a, s') encoding a stationary, deterministic
     policy and a discount factor gamma finds a reward vector R(s) for which
     the policy is optimal.
 
-    This method uses the Linear Programming IRL algorithm by Ng and Abbeel,
+    This method uses the Linear Programming IRL algorithm by Ng and Russell,
     2000 (http://ai.stanford.edu/~ang/papers/icml00-irl.pdf). See
     https://www.inf.ed.ac.uk/teaching/courses/rl/slides17/8_IRL.pdf for a more
     accessible overview.
@@ -243,7 +243,7 @@ def lp_irl(T, gamma, l1, *, Rmax=1.0, method="cvxopt"):
 
 def llp_irl(S0, k, T, phi, *, m=2.0, Rmax=1.0, method="cvxopt"):
     """
-    Implements Linear Programming IRL for large state spaces by NG and Abbeel,
+    Implements Linear Programming IRL for large state spaces by NG and Russell,
         2000
 
     See https://thinkingwires.com/posts/2018-02-13-irl-tutorial-1.html for a
@@ -258,7 +258,7 @@ def llp_irl(S0, k, T, phi, *, m=2.0, Rmax=1.0, method="cvxopt"):
         at each state, for some arbitrary but consistent ordering of states
     @param phi - A vector of d basis functions phi_i(s) mapping from S to the
         reals
-    @param m - Penalty function coefficient. Ng and Abbeel find m=2 is robust
+    @param m - Penalty function coefficient. Ng and Russell find m=2 is robust
     @param Rmax - Maximum reward value
     @param method - LP programming method. One of "cvxopt", "scipy-simplex" or
         "scipy-interior-point"
