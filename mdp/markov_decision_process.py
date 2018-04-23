@@ -237,13 +237,14 @@ class MarkovDecisionProcess(MarkovRewardProcess):
             "Given state ({}) is not in state set".format(current_state)
 
         reward = self.get_expected_reward(current_state, action)
-        state_index = np.where(self.state_set == current_state)[0][0]
-        action_index = np.where(self.action_set == action)[0][0]
+        state_index = list(self.state_set).index(current_state)
+        action_index = list(self.action_set).index(action)
 
-        new_state = np.random.choice(
-            self.state_set,
+        new_state_index = np.random.choice(
+            range(len(self.state_set)),
             p=self.transition_matrix[state_index * len(self.action_set) + action_index, :]
         )
+        new_state = self.state_set[new_state_index]
 
         return (action, reward, new_state)
 

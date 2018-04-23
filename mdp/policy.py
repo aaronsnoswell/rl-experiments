@@ -80,22 +80,17 @@ class Policy():
         # Deep copy the value function
         value_function = dict(initial_value_function)
 
-        for state in self.mdp.state_set:
-            state_index = np.where(self.mdp.state_set == state)[0][0]
+        for state_index, state in enumerate(self.mdp.state_set):
 
             new_value = 0
 
-            for action in self.policy_mapping[state]:
-                action_index = np.where(self.mdp.action_set == action)[0][0]
+            for action_index, action in enumerate(self.policy_mapping[state]):
 
                 action_probability = self.policy_mapping[state][action]
                 reward_value = self.mdp.reward_mapping.get(state, {}).get(action, 0)
 
                 next_state_expectation = 0
-                for next_state in self.mdp.state_set:
-
-                    # Look up index of state
-                    next_state_index = np.where(self.mdp.state_set == next_state)[0][0]
+                for next_state_index, next_state in enumerate(self.mdp.state_set):
                     
                     # Get probability of transitioning to that state under s, a
                     transition_prob = self.mdp.transition_matrix[state_index * len(self.mdp.action_set) + action_index][next_state_index]
