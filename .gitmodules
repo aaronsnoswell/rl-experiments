@@ -13,3 +13,6 @@
 [submodule "thirdparty/jinxulin-inverse-reinforcement-learning"]
 	path = thirdparty/jinxulin-inverse-reinforcement-learning
 	url = https://github.com/jinxulin/inverse-reinforcement-learning.git
+[submodule "third-party/jinxulin-inverse-reinforcement-learning"]
+	path = third-party/jinxulin-inverse-reinforcement-learning
+	url = https://github.com/jinxulin/inverse-reinforcement-learning.git
