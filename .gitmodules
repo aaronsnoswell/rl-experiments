@@ -10,6 +10,6 @@
 [submodule "third-party/openai-gym"]
 	path = third-party/openai-gym
 	url = https://github.com/openai/gym
-[submodule "thirdparty\\jinxulin-inverse-reinforcement-learning"]
-	path = thirdparty\\jinxulin-inverse-reinforcement-learning
+[submodule "thirdparty/jinxulin-inverse-reinforcement-learning"]
+	path = thirdparty/jinxulin-inverse-reinforcement-learning
 	url = https://github.com/jinxulin/inverse-reinforcement-learning.git
