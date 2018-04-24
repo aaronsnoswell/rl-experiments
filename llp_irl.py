@@ -303,24 +303,26 @@ if __name__ == "__main__":
 
     # Solve the MDP using state, action discretisation for funtion
     # approximation
-    print("Preparing discrete approximation")
-    S = [
-        (p, v) for v in np.linspace(
-            -env.unwrapped.max_speed,
-            env.unwrapped.max_speed,
-            20
-        )
-        for p in np.linspace(
-            env.unwrapped.min_position,
-            env.unwrapped.max_position,
-            5
-        )
-    ]
-    A = [0, 1, 2]
-    R = [0 if s[0] < env.unwrapped.goal_position else 100 for s in S]
-    gamma = 0.9
+    print("Preparing discrete MDP approximation")
+    from mountain_car import ContinuousMountainCar
+    mc_mdp = ContinuousMountainCar(env, gamma=0.9, N=(20, 5))
+
+    # Compute optimal policy via PI
+    print("Solving for optimal policy")
+    from mdp.policy import Policy, UniformRandomPolicy
+    v_star, p_star = Policy.policy_iteration(
+        UniformRandomPolicy(mc_mdp),
+        {s: 1/len(mc_mdp.state_set) for s in mc_mdp.state_set}
+    )
+
+    # Try running the discovered optimal policy on the task
+    from gym_mountaincar import run_episode
+
 
     def nearest_in_list(x, lst):
+        #""
+        Helper function to find the nearest entry in lst to x
+        #""
         nearest_index = -1
         nearest_dist = math.inf
         for li, i in enumerate(lst):
@@ -330,78 +332,15 @@ if __name__ == "__main__":
                 nearest_index = li
         return lst[nearest_index]
 
-    # Estimate full transition matrix
-    Tm = np.zeros(shape=[len(S), len(A), len(S)], dtype=float)
-    for s0i, s0 in enumerate(S):
-        for ai, a in enumerate(A):
-
-            # Step, performing the same action, until we change states
-            s1curr = s0
-            s1round = s0
-            tol = 1e-6
-            while s1round[0] == s0[0] and s1round[1] == s0[1]:
-
-                # Step with action a to get a new state
-                s1new = T(s1curr, a)
-
-
-                if np.linalg.norm(s1new - s1curr) < tol:
-                    # If we're stationary, exit
-                    s1curr = s1new
-                    break
-
-                # Round to the nearest discretised state
-                s1curr = s1new
-                s1round = nearest_in_list(s1curr, S)
-
-            # We either moved to a new state, or aren't moving at all
-            s1i = S.index(s1round)
-            Tm[s0i, ai, s1i] = 1
-
-    Tm_sa = np.zeros(shape=[len(S) * len(A), len(S)])
-    for s0i, s0 in enumerate(S):
-        for ai, a in enumerate(A):
-            Tm_sa[s0i * len(A) + ai, :] = Tm[s0i, ai, :]
-
-    from mdp.markov_decision_process import MarkovDecisionProcess
-    from mdp.policy import Policy, UniformRandomPolicy
-
-    print("Preparing MDP")
-    class MCMDP(MarkovDecisionProcess):
-        """
-        Define an MDP for the MountainCar problem
-        """
-
-        def __init__(self):
-            self.state_set = S
-            self.terminal_state_set = [s for si, s in enumerate(S) if R[si] != 0]
-            self.action_set = A
-            self.transition_matrix = Tm_sa
-            self.reward_mapping = {s: {a: R[si] for a in A} for si, s in enumerate(S)}
-            self.possible_action_mapping = {s: A for s in S}
-            self.discount_factor = 0.9
-
-
-    # Compute optimal policy via PI
-    print("Solving for optimal policy")
-    mc_mdp = MCMDP()
-    v_star, p_star = Policy.policy_iteration(
-        UniformRandomPolicy(mc_mdp),
-        {s: 1/len(S) for s in S}
-    )
-
-    # Try running the discovered optimal policy on the task
-    from gym_mountaincar import run_episode
 
     def p_fn(observation, env, key_handler):
         # Discretise observation
-        s_disc = nearest_in_list(observation, S)
+        s_disc = nearest_in_list(observation, mc_mdp.state_set)
         return p_star.get_action(s_disc)
 
+
     run_episode(p_fn, continuous=True)
-
-
-    """
+    
     # Run IRL
     alpha_vector, res = llp_irl(sf, M, k, T_nonexpert, phi, verbose=True)
 
@@ -413,6 +352,4 @@ if __name__ == "__main__":
 
     for sx in np.linspace(env.unwrapped.min_position, env.unwrapped.max_position, 100):
         print("{}, {}".format(sx, R([sx, 0])))
-    """
-
 
