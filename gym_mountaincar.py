@@ -92,23 +92,23 @@ def manual_policy(observation, env, key_handler):
     decay = 0.9
 
     # Set static variable for next action
-    if "action" not in manual_control_policy.__dict__:
-        manual_control_policy.action = 0
+    if "action" not in manual_policy.__dict__:
+        manual_policy.action = 0
 
     # Get next action from user
-    manual_control_policy.action *= 0.9
+    manual_policy.action *= 0.9
     if key_handler[key.LEFT] and not key_handler[key.RIGHT]:
-        manual_control_policy.action = max(
-            manual_control_policy.action - step_inc,
+        manual_policy.action = max(
+            manual_policy.action - step_inc,
             -1
         )
     elif not key_handler[key.LEFT] and key_handler[key.RIGHT]:
-        manual_control_policy.action = min(
-            manual_control_policy.action + step_inc,
+        manual_policy.action = min(
+            manual_policy.action + step_inc,
             1
         )
 
-    return manual_control_policy.action
+    return manual_policy.action
 
 
 def plot(traj):
