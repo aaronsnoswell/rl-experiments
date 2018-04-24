@@ -108,3 +108,6 @@ venv.bak/
 
 **/*.pdf
 **/*.png
+
+# Temporarily ignore Nick Rhinehart's DARKO paper
+third-party/nickrhinehart-maxent-ioc
