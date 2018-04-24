@@ -11,7 +11,7 @@ import numpy as np
 from cvxopt import matrix, solvers
 
 
-def tlp_irl(zeta, T, S_bounds, A, phi, gamma, *, p=2.0, m=5000, H=30,
+def tlp_irl(zeta, T, S_bounds, A, phi, gamma, opt_pol, *, p=2.0, m=5000, H=30,
         tol=1e-6, verbose=False):
     """
     Implements trajectory-based Linear Programming IRL by Ng and Russell, 2000
@@ -26,6 +26,9 @@ def tlp_irl(zeta, T, S_bounds, A, phi, gamma, *, p=2.0, m=5000, H=30,
     @param phi - A vector of d basis functions phi_i(s) mapping from S to real
         numbers
     @param gamma - Discount factor for future rewards
+    @param opt_pol - A function f(alpha) -> (f(s) -> a) That returns an
+        optimal policy function, given an alpha vector defining a linear
+        reward function
 
     @param p - Penalty function coefficient. Ng and Russell find p=2 is robust
         Must be >= 1
@@ -56,8 +59,7 @@ def tlp_irl(zeta, T, S_bounds, A, phi, gamma, *, p=2.0, m=5000, H=30,
             break
 
 
-
-    def state_indices(s, N):
+    def state_as_index_tuple(s, N):
         """
         Discretises the given state into it's appropriate indices, as a tuple
         
@@ -76,21 +78,24 @@ def tlp_irl(zeta, T, S_bounds, A, phi, gamma, *, p=2.0, m=5000, H=30,
 
     def random_policy(N=20):
         """
-        Generates a uniform random policy lookup tensor by discretising the
-        state space
+        Generates a uniform random policy function by discretising the state
+        space
 
         @param N - The number of discretisation steps to use for each state
             dimension
         """
         r_policy = np.random.choice(A, [N] * len(S_bounds))
-        return (lambda policy: lambda s: policy[state_indices(s, N)])(r_policy)
+        return (
+            lambda policy:
+                lambda s: policy[state_as_index_tuple(s, N)]
+            )(r_policy)
 
 
     def mc_trajectories(policy, T, phi, *, m=m, H=H):
         """
         Sample some monte-carlo trajectories from the given policy tensor
 
-        @param policy - A function f(s) that returns the next action as a
+        @param policy - A function f(s) -> a that returns the next action as a
             function of our current state
         @param T - A sampling transition function function T(s, a) -> s'
             that returns a new state after applying action a from state s
@@ -117,19 +122,29 @@ def tlp_irl(zeta, T, S_bounds, A, phi, gamma, *, p=2.0, m=5000, H=30,
         return trajectories
 
 
-    def emperical_policy_value(zeta):
+    def emperical_policy_value(zeta, phi=phi, gamma=gamma):
         """
         Computes the vector of mean discounted future basis function values
-        for the given set of trajectories representing a single policy.
+        for the given set of trajectories representing a single policy
+
+        @param zeta - A list of lists of state, action tuples
+        @param phi - Vector of basis functions defining a linear reward
+            function
+        @param gamma - Discount factor
         """
 
 
-        def emperical_trajectory_value(trajectory):
+        def emperical_trajectory_value(trajectory, phi=phi, gamma=gamma):
             """
-            Computes the vector of discounted future basis function values for the
-            given trajectory. The inner product of this vector and an alpha vector
-            gives the emperical value of zeta under the reward function defined by
-            alpha
+            Computes the vector of discounted future basis function values for
+            the given trajectory. The inner product of this vector and an
+            alpha vector gives the emperical value of the trajectory under the
+            reward function defined by alpha
+
+            @param zeta - A list of lists of state, action tuples
+            @param phi - Vector of basis functions defining a linear reward
+                function
+            @param gamma - Discount factor
             """
             value = np.zeros(shape=d)
             for i in range(d):
@@ -156,8 +171,8 @@ def tlp_irl(zeta, T, S_bounds, A, phi, gamma, *, p=2.0, m=5000, H=30,
     non_expert_policy_value_vectors = np.array([
         emperical_policy_value(
             mc_trajectories(
-                non_expert_policy_set[0],
-                step,
+                non_expert_policy_set[-1],
+                T,
                 phi
             )
         )
@@ -171,10 +186,40 @@ def tlp_irl(zeta, T, S_bounds, A, phi, gamma, *, p=2.0, m=5000, H=30,
     def add_optimal_expert_constraints(c, A_ub, b_ub):
         """
         Add constraints that enforce that the expert demonstrations are better
-        than all other known policies
+        than all other known policies (of which there are k)
+
+        This will add k new optimisation variables and 2*k constraints
 
         NB: Assumes the true optimisation variables are first in the c vector
         """
+
+        # Step 1: Add optimisation variables for each known non-expert policy
+        c = np.hstack([np.zeros(shape=d), np.ones(shape=k)])
+        A_ub = np.hstack([A, np.zeros(shape=(A_ub.shape[0], k))])
+
+        # Step 2: Add constraints to ensure the expert demonstration is better
+        # than each non-expert policy (nb: we use np ufunc broadcasting here)
+
+        # Add first half of penalty function
+        A_ub = np.vstack([
+            A_ub,
+            np.hstack([
+                expert_value_vector - non_expert_policy_value_vectors,
+                -1 * np.identity(k)
+            ])
+        ])
+        b_ub = np.vstack([b_ub, np.zeros(shape=k)])
+
+        # Add second half of penalty function
+        A_ub = np.vstack([
+            A_ub,
+            np.hstack([
+                p * (expert_value_vector - non_expert_policy_value_vectors),
+                -1 * np.identity(k)
+            ])
+        ])
+        b_ub = np.vstack([b_ub, np.zeros(shape=k)])
+
         
         return c, A_ub, b_ub
 
@@ -182,6 +227,7 @@ def tlp_irl(zeta, T, S_bounds, A, phi, gamma, *, p=2.0, m=5000, H=30,
     def add_alpha_size_constraints(c, A_ub, b_ub):
         """
         Add constraints for a maximum |alpha| value of 1
+
         This will add 2 * d extra constraints
 
         NB: Assumes the true optimisation variables are first in the c vector
@@ -242,9 +288,21 @@ def tlp_irl(zeta, T, S_bounds, A, phi, gamma, *, p=2.0, m=5000, H=30,
         # Move alphas closer to true reward
         alpha = alpha_new
 
-        # Find a new greedy policy based on the new alpha vector and add it to
-        # the list of known policies
-        if verbose: print("Finding new greedy policy")
+        # Find a new optimal policy based on the new alpha vector and add it
+        # to the list of known policies
+        if verbose: print("Finding new optimal policy")
+        non_expert_policy_set.append(opt_pol(alpha))
+        np.vstack([
+            non_expert_policy_value_vectors,
+            emperical_policy_value(
+                mc_trajectories(
+                    non_expert_policy_set[-1],
+                    T,
+                    phi
+                )
+            )
+        ])
+
 
         # Loop
 
@@ -297,6 +355,16 @@ if __name__ == "__main__":
         )
     ]
 
+
+    def opt_pol(alpha):
+        """
+        Finds an optimal policy given an alpha vector defining a linear
+        reward function
+        """
+
+        
+
+
     # Perform trajectory based IRL
     # NB: MountainCar is not stocahstic, so we only need to sample m=1
     # trajectory to estimate trajectory value
@@ -310,6 +378,7 @@ if __name__ == "__main__":
         [-1, 0, 1],
         phi,
         0.9,
+        opt_pol,
         m=1
     )
 
