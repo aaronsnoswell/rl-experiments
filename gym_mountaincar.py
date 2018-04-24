@@ -87,6 +87,9 @@ def manual_policy(observation, env, key_handler):
     Manual control policy
     """
 
+    # Extend time
+    env._max_episode_steps += 1
+
     # Constants
     step_inc = 0.1
     decay = 0.9
