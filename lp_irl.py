@@ -7,8 +7,10 @@ import math
 import copy
 import numpy as np
 
+from cvxopt import matrix, solvers
 
-def lp_irl(T, gamma, l1, *, Rmax=1.0, method="cvxopt"):
+
+def lp_irl(T, gamma, l1, *, Rmax=1.0):
     """
     Implements Linear Programming IRL by NG and Russell, 2000
 
@@ -29,8 +31,6 @@ def lp_irl(T, gamma, l1, *, Rmax=1.0, method="cvxopt"):
     @param l1 - L1 regularization weight for LP optimisation objective
         function
     @param Rmax - Maximum reward value
-    @param method - LP programming method. One of "cvxopt", "scipy-simplex" or
-        "scipy-interior-point"
 
     @return A reward vector for which the given policy is optimal
     @return A result object from the optimiser
@@ -172,26 +172,10 @@ def lp_irl(T, gamma, l1, *, Rmax=1.0, method="cvxopt"):
     #print(b_ub[:, 0])
 
     # Solve for a solution
-    res = None
-    if method == "scipy-simplex":
-        # NB: scipy.optimize.linprog expects a 1d c vector
-        from scipy.optimize import linprog
-        res = linprog(c[0, :], A_ub=A_ub, b_ub=b_ub[:, 0], method="simplex")
 
-    elif method == "scipy-interior-point":
-        # NB: scipy.optimize.linprog expects a 1d c vector
-        from scipy.optimize import linprog
-        res = linprog(c[0, :], A_ub=A_ub, b_ub=b_ub[:, 0],  method="interior-point")
-
-    elif method == "cvxopt":
-        # NB: cvxopt.solvers.lp expects a 1d c vector
-        from cvxopt import matrix, solvers
-        res = solvers.lp(matrix(c[0, :]), matrix(A_ub), matrix(b_ub))
-
-    else:
-
-        raise Exception("Unkown LP method type: {}".format(method))
-        return None
+    # NB: cvxopt.solvers.lp expects a 1d c vector
+    from cvxopt import matrix, solvers
+    res = solvers.lp(matrix(c[0, :]), matrix(A_ub), matrix(b_ub))
 
 
     def normalize(vals):

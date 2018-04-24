@@ -8,8 +8,10 @@ import math
 import copy
 import numpy as np
 
+from cvxopt import matrix, solvers
 
-def llp_irl(sf, M, k, T, phi, *, N=1000, m=2.0, method="cvxopt", verbose=False):
+
+def llp_irl(sf, M, k, T, phi, *, N=1000, p=2.0, verbose=False):
     """
     Implements Linear Programming IRL for large state spaces by NG and
         Russell, 2000
@@ -31,13 +33,9 @@ def llp_irl(sf, M, k, T, phi, *, N=1000, m=2.0, method="cvxopt", verbose=False):
         numbers
     @param N - Number of transition samples to use when computing expectations
         over the Value basis functions
-    @param m - Penalty function coefficient. Ng and Russell find m=2 is robust
+    @param p - Penalty function coefficient. Ng and Russell find p=2 is robust
         Must be >= 1
-    @param method - LP programming method. One of "cvxopt", "scipy-simplex" or
-        "scipy-interior-point"
     @param verbose - If true, progress information will be shown
-
-    NB: method == scipy-interior-point depends on scikit-learn>=0.19.1
 
     @return A vector of d 'alpha' coefficients for the basis functions phi(S)
         that allows rewards to be computed for a state via the inner product
@@ -177,7 +175,7 @@ def llp_irl(sf, M, k, T, phi, *, N=1000, m=2.0, method="cvxopt", verbose=False):
                 A_ub = np.vstack((A_ub, constraint_row))
                 b_ub = np.vstack((b_ub, 0))
 
-                constraint_row = np.hstack([m * VE_tensor[:, i-1, j], \
+                constraint_row = np.hstack([p * VE_tensor[:, i-1, j], \
                     np.zeros(shape=M)])
                 constraint_row[d + j] = -1
                 A_ub = np.vstack((A_ub, constraint_row))
@@ -225,26 +223,9 @@ def llp_irl(sf, M, k, T, phi, *, N=1000, m=2.0, method="cvxopt", verbose=False):
 
     # Solve for a solution
     if verbose: print("Solving LP problem...")
-    res = None
-    if method == "scipy-simplex":
-        # NB: scipy.optimize.linprog expects a 1d c vector
-        from scipy.optimize import linprog
-        res = linprog(c[0, :], A_ub=A_ub, b_ub=b_ub[:, 0], method="simplex")
-
-    elif method == "scipy-interior-point":
-        # NB: scipy.optimize.linprog expects a 1d c vector
-        from scipy.optimize import linprog
-        res = linprog(c[0, :], A_ub=A_ub, b_ub=b_ub[:, 0],  method="interior-point")
-
-    elif method == "cvxopt":
-        # NB: cvxopt.solvers.lp expects a 1d c vector
-        from cvxopt import matrix, solvers
-        res = solvers.lp(matrix(c[0, :]), matrix(A_ub), matrix(b_ub))
-
-    else:
-
-        raise Exception("Unkown LP method type: {}".format(method))
-        return None
+    
+    # NB: cvxopt.solvers.lp expects a 1d c vector
+    res = solvers.lp(matrix(c[0, :]), matrix(A_ub), matrix(b_ub))
 
     # Extract the true optimisation variables
     alpha_vector = res['x'][0:d].T
