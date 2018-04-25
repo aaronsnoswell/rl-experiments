@@ -213,10 +213,6 @@ def llp_irl(sf, M, k, T, phi, *, N=1000, p=2.0, verbose=False):
     c, A_ub, b_ub = add_costly_single_step_constraints(c, A_ub, b_ub)
     c, A_ub, b_ub = add_alpha_size_constraints(c, A_ub, b_ub)
 
-    # Show the LP system prior to solving
-    #print(c[0, :])
-    #print(A_ub)
-    #print(b_ub[:, 0])
     if verbose:
         print("Number of optimisation variables: {}".format(c.shape[1]))
         print("Number of constraints: {}".format(A_ub.shape[0]))

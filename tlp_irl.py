@@ -265,11 +265,6 @@ def tlp_irl(zeta, T, S_bounds, A, phi, gamma, opt_pol, *, p=2.0, m=5000, H=30,
         c, A_ub, b_ub = add_optimal_expert_constraints(c, A_ub, b_ub)
         c, A_ub, b_ub = add_alpha_size_constraints(c, A_ub, b_ub)
 
-        # Show the LP system prior to solving
-        #print(c[0, :])
-        #print(A_ub)
-        #print(b_ub[:, 0])
-
         # Solve the LP problem
         if verbose:
             print("Solving LP problem...")

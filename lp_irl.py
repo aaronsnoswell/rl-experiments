@@ -166,11 +166,6 @@ def lp_irl(T, gamma, l1, *, Rmax=1.0):
     c, A_ub, b_ub = add_rmax_constraints(c, A_ub, b_ub, Rmax)
     c, A_ub, b_ub = add_l1norm_constraints(c, A_ub, b_ub, l1)
 
-    # Show the LP system prior to solving
-    #print(c[0, :])
-    #print(A_ub)
-    #print(b_ub[:, 0])
-
     # Solve for a solution
 
     # NB: cvxopt.solvers.lp expects a 1d c vector
