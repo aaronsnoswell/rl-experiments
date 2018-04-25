@@ -343,13 +343,30 @@ if __name__ == "__main__":
     
     # Run IRL
     alpha_vector, res = llp_irl(sf, M, k, T_nonexpert, phi, verbose=True)
-
+    print(alpha_vector)
 
     # Compose reward function
     R = lambda s: np.dot(alpha_vector, [phi[i](s) for i in range(len(phi))])[0]
 
-    print(alpha_vector)
+    # Show basis functions and reward function
+    import matplotlib.pyplot as plt
+    x = np.linspace(env.unwrapped.min_position, env.unwrapped.max_position, 100)
 
-    for sx in np.linspace(env.unwrapped.min_position, env.unwrapped.max_position, 100):
-        print("{}, {}".format(sx, R([sx, 0])))
+    for i in range(len(alpha_vector)):
+        plt.plot(
+            x,
+            list(map(lambda s: alpha_vector[i] * phi[i]([s, 0]), x)),
+            'r--'
+        )
 
+    y = np.array(list(map(lambda s: R([s, 0]), x)))
+    plt.plot(
+        x,
+        y,
+        'b'
+    )
+
+    plt.grid()
+    plt.title(r"Reward function $R(\pi^*)$")
+    plt.xlim([env.unwrapped.min_position, env.unwrapped.max_position])
+    plt.show()
