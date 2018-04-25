@@ -48,7 +48,7 @@ def tlp_irl(zeta, T, S_bounds, A, phi, gamma, opt_pol, *, p=2.0, m=5000, H=30,
     d = len(phi)
 
     # Get starting state s0
-    start_state = zeta[0][0]
+    start_state = zeta[0][0][0]
 
     # Check for consistent starting states
     for demonstration in range(len(zeta) - 1):
@@ -67,6 +67,7 @@ def tlp_irl(zeta, T, S_bounds, A, phi, gamma, opt_pol, *, p=2.0, m=5000, H=30,
         @param N - The number of discretisation steps to use for each state
             dimension
         """
+        print(s)
         indices = []
         for state_index, state in enumerate(s):
             s_min, s_max = S_bounds[state_index]
@@ -111,7 +112,7 @@ def tlp_irl(zeta, T, S_bounds, A, phi, gamma, opt_pol, *, p=2.0, m=5000, H=30,
             state = start_state
             rollout = []
 
-            while len(rollout) < max_trajectory_length:
+            while len(rollout) < H:
                 action = policy(state)
                 rollout.append((state, action))
 
@@ -159,6 +160,8 @@ def tlp_irl(zeta, T, S_bounds, A, phi, gamma, opt_pol, *, p=2.0, m=5000, H=30,
             value_vector += emperical_trajectory_value(trajectory)
         value_vector /= len(zeta)
 
+        return value_vector
+
 
     # Initialize alpha vector
     alpha = np.random.uniform(size=d) * 2 - 1
@@ -193,14 +196,18 @@ def tlp_irl(zeta, T, S_bounds, A, phi, gamma, opt_pol, *, p=2.0, m=5000, H=30,
         NB: Assumes the true optimisation variables are first in the c vector
         """
 
+        k = len(non_expert_policy_set)
+
         # Step 1: Add optimisation variables for each known non-expert policy
-        c = np.hstack([np.zeros(shape=d), np.ones(shape=k)])
-        A_ub = np.hstack([A, np.zeros(shape=(A_ub.shape[0], k))])
+        c = np.hstack([np.zeros(shape=(1, d)), np.ones(shape=(1, k))])
+        A_ub = np.hstack([A_ub, np.zeros(shape=(A_ub.shape[0], k))])
 
         # Step 2: Add constraints to ensure the expert demonstration is better
         # than each non-expert policy (nb: we use np ufunc broadcasting here)
 
         # Add first half of penalty function
+        print(expert_value_vector)
+        print(non_expert_policy_value_vectors)
         A_ub = np.vstack([
             A_ub,
             np.hstack([
@@ -292,7 +299,7 @@ def tlp_irl(zeta, T, S_bounds, A, phi, gamma, opt_pol, *, p=2.0, m=5000, H=30,
         # to the list of known policies
         if verbose: print("Finding new optimal policy")
         non_expert_policy_set.append(opt_pol(alpha))
-        np.vstack([
+        non_expert_policy_value_vectors = np.vstack([
             non_expert_policy_value_vectors,
             emperical_policy_value(
                 mc_trajectories(
@@ -314,6 +321,7 @@ def tlp_irl(zeta, T, S_bounds, A, phi, gamma, opt_pol, *, p=2.0, m=5000, H=30,
 if __name__ == "__main__":
 
     # Collect a single trajectory from the human user
+    print("Collecting expert trajectory")
     from gym_mountaincar import run_episode, manual_policy
     _, _, zeta = run_episode(manual_policy)
 
@@ -324,8 +332,8 @@ if __name__ == "__main__":
 
     def T(state, action):
         """
-        A sampling trasition funciton that allows us to simulate forwards
-        through the world dynamics.
+        A sampling trasition function that allows us to simulate forwards
+        through the world dynamics
         """
         env.reset()
         env.unwrapped.state = state
@@ -355,6 +363,13 @@ if __name__ == "__main__":
         )
     ]
 
+    # Solve the MDP using state, action discretisation for funtion
+    # approximation
+    print("Preparing discrete MDP approximation")
+    from mountain_car import ContinuousMountainCar
+    from mdp.policy import Policy, UniformRandomPolicy
+    mc_mdp = ContinuousMountainCar(env, gamma=0.9, N=(20, 5))
+
 
     def opt_pol(alpha):
         """
@@ -362,7 +377,30 @@ if __name__ == "__main__":
         reward function
         """
 
-        
+        # Find optimal policy via policy iteration
+        v_star, p_star = Policy.policy_iteration(
+            UniformRandomPolicy(mc_mdp),
+            {s: 1/len(mc_mdp.state_set) for s in mc_mdp.state_set}
+        )
+
+
+        def nearest_in_list(x, lst):
+            """
+            Helper function to find the nearest entry in lst to x
+            """
+            nearest_index = -1
+            nearest_dist = math.inf
+            for li, i in enumerate(lst):
+                dist = np.linalg.norm(np.array(x) - np.array(i))
+                if dist < nearest_dist:
+                    nearest_dist = dist
+                    nearest_index = li
+            return lst[nearest_index]
+
+
+        return lambda pol: (
+            lambda s: pol(nearest_in_list(s, mc_mdp.state_set))
+        )(p_star)
 
 
     # Perform trajectory based IRL
@@ -370,7 +408,7 @@ if __name__ == "__main__":
     # trajectory to estimate trajectory value
     tlp_irl(
         [zeta],
-        step,
+        T,
         [
             (env.unwrapped.min_position, env.unwrapped.max_position),
             (-env.unwrapped.max_speed, env.unwrapped.max_speed)
