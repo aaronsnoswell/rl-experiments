@@ -161,6 +161,7 @@ def llp_irl(sf, M, k, T, phi, *, N=1000, p=2.0, verbose=False):
 
         # Loop for each of the starting sampled states s_j
         for j in range(M):
+            if verbose: print("CSS: Adding constraints ({:.2f}%)".format(j/M*100))
 
             # Loop over the k-1 non-expert actions
             for i in range(1, k):
