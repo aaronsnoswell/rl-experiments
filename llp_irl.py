@@ -308,7 +308,8 @@ if __name__ == "__main__":
     from mdp.policy import Policy, UniformRandomPolicy
     v_star, p_star = Policy.policy_iteration(
         UniformRandomPolicy(mc_mdp),
-        {s: 1/len(mc_mdp.state_set) for s in mc_mdp.state_set}
+        {s: 1/len(mc_mdp.state_set) for s in mc_mdp.state_set},
+        verbose=True
     )
 
     # Try running the discovered optimal policy on the task
