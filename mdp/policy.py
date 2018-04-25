@@ -116,7 +116,8 @@ class Policy():
         *,
         on_iteration=None,
         epsillon=0.001,
-        max_iterations=math.inf
+        max_iterations=math.inf,
+        verbose=False
         ):
         """
         Performs IPE to determine a value function
@@ -147,11 +148,11 @@ class Policy():
 
             # Check convergence criteria
             if largest_delta < epsillon:
-                print("IPE: Got converged value function after {} iteration(s)".format(k))
+                if verbose: print("IPE: Got converged value function after {} iteration(s)".format(k))
                 continue_iterating = False
 
             if k >= max_iterations:
-                print("IPE: Stopping after {} iteration(s)".format(k))
+                if verbose: print("IPE: Stopping after {} iteration(s)".format(k))
                 continue_iterating = False
 
             value_function = new_value_function
@@ -201,7 +202,8 @@ class Policy():
         on_iteration=None,
         epsillon=0.001,
         max_value_iterations=math.inf,
-        max_iterations=math.inf
+        max_iterations=math.inf,
+        verbose=False
         ):
         """
         Performs policy iteration to find V*, pi*
@@ -222,7 +224,8 @@ class Policy():
             new_value_function = policy.iterative_policy_evaluation(
                 value_function,
                 epsillon=epsillon,
-                max_iterations=max_value_iterations
+                max_iterations=max_value_iterations,
+                verbose=verbose
             )
 
             # Do greedy policy improvement
@@ -234,11 +237,11 @@ class Policy():
 
             # Test policy for stability
             if new_policy == policy:
-                print("PI: Got policy convergence after {} iterations".format(k))
+                if verbose: print("PI: Got policy convergence after {} iterations".format(k))
                 continue_iterating = False
 
             if k >= max_iterations:
-                print("PI: Stopping after {} iterations".format(k))
+                if verbose: print("PI: Stopping after {} iterations".format(k))
                 continue_iterating = False
 
             # Copy new functions
