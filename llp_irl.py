@@ -218,7 +218,7 @@ def llp_irl(sf, M, k, T, phi, *, N=1000, p=2.0, verbose=False):
     #print(A_ub)
     #print(b_ub[:, 0])
     if verbose:
-        print("Number of optimsation variables: {}".format(c.shape[1]))
+        print("Number of optimisation variables: {}".format(c.shape[1]))
         print("Number of constraints: {}".format(A_ub.shape[0]))
 
     # Solve for a solution

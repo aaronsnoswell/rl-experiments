@@ -276,7 +276,7 @@ def tlp_irl(zeta, T, S_bounds, A, phi, gamma, opt_pol, *, p=2.0, m=5000, H=30,
         # Solve the LP problem
         if verbose:
             print("Solving LP problem...")
-            print("Number of optimsation variables: {}".format(c.shape[1]))
+            print("Number of optimisation variables: {}".format(c.shape[1]))
             print("Number of constraints: {}".format(A_ub.shape[0]))
 
         # NB: cvxopt.solvers.lp expects a 1d c vector
