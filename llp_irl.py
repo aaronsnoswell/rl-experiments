@@ -47,8 +47,8 @@ def llp_irl(sf, M, k, T, phi, *, N=1000, p=2.0, verbose=False):
     d = len(phi)
 
     # Enforce valid penalty function coefficient
-    assert m >= 1, \
-        "Penalty function coefficient must be >= 1, was {}".format(m)
+    assert p >= 1, \
+        "Penalty function coefficient must be >= 1, was {}".format(p)
 
     def compute_value_expectation_tensor(sf, M, k, T, phi, N, verbose):
         """
