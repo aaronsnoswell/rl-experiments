@@ -170,8 +170,26 @@ class Policy():
 
 
     def __eq__(self, other):
+        # Check these policies are for the same MDP
         if self.mdp != other.mdp: return False
-        if self.policy_mapping != other.policy_mapping: return False
+
+        # Verify that these policies are, in fact, equal
+        # Can't use simple ==, because the policie mappings could include
+        # floating point state representations
+        for from_state in self.policy_mapping:
+            
+            if from_state not in other.policy_mapping.keys():
+                return False
+
+            for to_state in self.policy_mapping[from_state]:
+
+                if to_state not in other.policy_mapping[from_state]:
+                    return False
+
+                    if not isclose(self.policy_mapping[from_state][to_state], other.policy_mapping[from_state][to_state]):
+                        return False
+
+        # Return true
         return True
 
 
