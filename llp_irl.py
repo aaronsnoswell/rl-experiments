@@ -288,17 +288,17 @@ if __name__ == "__main__":
 
 
     # Build basis function set of size |d|
-    d = 3
-    simga = 0.5
+    d = 4
+    sigma = 0.5
     min_pos = env.unwrapped.min_position
     max_pos = env.unwrapped.max_position
-    step = (max_pos - min_pos) / d
-    basis_function_positions = np.arange(
-        min_pos + step/2, max_pos + step/2, step
-    )
-
+    delta = (max_pos - min_pos) / d
     phi = [
-        lambda s: normal(mu, simga, s[0]) for mu in basis_function_positions
+        (lambda mu: lambda s: normal(mu, sigma, s[0]))(p) for p in np.arange(
+            min_pos + delta/2,
+            max_pos + delta/2,
+            delta
+        )
     ]
 
     # Solve the MDP using state, action discretisation for funtion
