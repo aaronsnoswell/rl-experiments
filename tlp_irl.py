@@ -67,7 +67,6 @@ def tlp_irl(zeta, T, S_bounds, A, phi, gamma, opt_pol, *, p=2.0, m=5000, H=30,
         @param N - The number of discretisation steps to use for each state
             dimension
         """
-        print(s)
         indices = []
         for state_index, state in enumerate(s):
             s_min, s_max = S_bounds[state_index]
@@ -206,8 +205,6 @@ def tlp_irl(zeta, T, S_bounds, A, phi, gamma, opt_pol, *, p=2.0, m=5000, H=30,
         # than each non-expert policy (nb: we use np ufunc broadcasting here)
 
         # Add first half of penalty function
-        print(expert_value_vector)
-        print(non_expert_policy_value_vectors)
         A_ub = np.vstack([
             A_ub,
             np.hstack([
