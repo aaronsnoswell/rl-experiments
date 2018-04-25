@@ -350,8 +350,8 @@ if __name__ == "__main__":
 
 
     # Build a set of basis functions
-    d = 4
-    sigma = 0.1
+    d = 5
+    sigma = 0.4
     min_pos = env.unwrapped.min_position
     max_pos = env.unwrapped.max_position
     delta = (max_pos - min_pos) / d
@@ -415,7 +415,7 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     
 
-    def visualise(alpha_vector):
+    def visualise(alpha_vector, block=False):
 
         print(alpha_vector)
 
@@ -425,6 +425,7 @@ if __name__ == "__main__":
         # Show basis functions and reward function
         x = np.linspace(env.unwrapped.min_position, env.unwrapped.max_position, 100)
 
+        plt.clf()
         for i in range(len(alpha_vector)):
             plt.plot(
                 x,
@@ -442,7 +443,10 @@ if __name__ == "__main__":
         plt.grid()
         plt.title(r"Reward function $R(\pi^*)$")
         plt.xlim([env.unwrapped.min_position, env.unwrapped.max_position])
-        plt.show()
+        if block:
+            plt.show()
+        else:
+            plt.pause(0.05)
 
 
     # Perform trajectory based IRL
@@ -463,4 +467,6 @@ if __name__ == "__main__":
         verbose=True,
         on_iteration=visualise
     )
+
+    visualise(alpha_vector, block=True)
 
