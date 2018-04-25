@@ -212,7 +212,7 @@ def tlp_irl(zeta, T, S_bounds, A, phi, gamma, opt_pol, *, p=2.0, m=5000, H=30,
                 -1 * np.identity(k)
             ])
         ])
-        b_ub = np.vstack([b_ub, np.zeros(shape=k)])
+        b_ub = np.vstack([b_ub, np.zeros(shape=(k, 1))])
 
         # Add second half of penalty function
         A_ub = np.vstack([
@@ -222,7 +222,7 @@ def tlp_irl(zeta, T, S_bounds, A, phi, gamma, opt_pol, *, p=2.0, m=5000, H=30,
                 -1 * np.identity(k)
             ])
         ])
-        b_ub = np.vstack([b_ub, np.zeros(shape=k)])
+        b_ub = np.vstack([b_ub, np.zeros(shape=(k, 1))])
 
         
         return c, A_ub, b_ub
@@ -286,7 +286,9 @@ def tlp_irl(zeta, T, S_bounds, A, phi, gamma, opt_pol, *, p=2.0, m=5000, H=30,
         if verbose: print("Done")
 
         # If alpha_i's have converged, break
-        if np.linalg.norm(alpha - alpha_new) <= tol:
+        alpha_delta = np.linalg.norm(alpha - alpha_new)
+        if verbose: print("Alpha delta: {}".format(alpha_delta))
+        if alpha_delta <= tol:
             if verbose: print("Got reward convergence")
             break
 
@@ -396,15 +398,23 @@ if __name__ == "__main__":
             return lst[nearest_index]
 
 
-        return lambda pol: (
-            lambda s: pol(nearest_in_list(s, mc_mdp.state_set))
-        )(p_star)
+        def pol(s):
+            # First discretised the given state
+            s_disc = nearest_in_list(s, list(p_star.policy_mapping.keys()))
+            
+            # Look up the action options for this state
+            action_dict = p_star.policy_mapping[s_disc]
+
+            # Sample an action and return it
+            return np.random.choice(list(action_dict.keys()), p=list(action_dict.values()))
+
+        return pol
 
 
     # Perform trajectory based IRL
     # NB: MountainCar is not stocahstic, so we only need to sample m=1
     # trajectory to estimate trajectory value
-    tlp_irl(
+    alpha_vector, res = tlp_irl(
         [zeta],
         T,
         [
@@ -415,7 +425,34 @@ if __name__ == "__main__":
         phi,
         0.9,
         opt_pol,
-        m=1
+        m=1,
+        verbose=True
     )
 
+    print(alpha_vector)
 
+    # Compose reward function
+    R = lambda s: np.dot(alpha_vector, [phi[i](s) for i in range(len(phi))])[0]
+
+    # Show basis functions and reward function
+    import matplotlib.pyplot as plt
+    x = np.linspace(env.unwrapped.min_position, env.unwrapped.max_position, 100)
+
+    for i in range(len(alpha_vector)):
+        plt.plot(
+            x,
+            list(map(lambda s: alpha_vector[i] * phi[i]([s, 0]), x)),
+            'r--'
+        )
+
+    y = np.array(list(map(lambda s: R([s, 0]), x)))
+    plt.plot(
+        x,
+        y,
+        'b'
+    )
+
+    plt.grid()
+    plt.title(r"Reward function $R(\pi^*)$")
+    plt.xlim([env.unwrapped.min_position, env.unwrapped.max_position])
+    plt.show()
