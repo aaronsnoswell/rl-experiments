@@ -320,9 +320,9 @@ if __name__ == "__main__":
 
 
     def nearest_in_list(x, lst):
-        #""
+        """
         Helper function to find the nearest entry in lst to x
-        #""
+        """
         nearest_index = -1
         nearest_dist = math.inf
         for li, i in enumerate(lst):
