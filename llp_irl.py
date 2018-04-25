@@ -225,6 +225,7 @@ def llp_irl(sf, M, k, T, phi, *, N=1000, p=2.0, verbose=False):
     if verbose: print("Solving LP problem...")
     
     # NB: cvxopt.solvers.lp expects a 1d c vector
+    solvers.options['show_progress'] = verbose
     res = solvers.lp(matrix(c[0, :]), matrix(A_ub), matrix(b_ub))
 
     # Extract the true optimisation variables

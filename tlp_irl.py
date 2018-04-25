@@ -280,6 +280,7 @@ def tlp_irl(zeta, T, S_bounds, A, phi, gamma, opt_pol, *, p=2.0, m=5000, H=30,
             print("Number of constraints: {}".format(A_ub.shape[0]))
 
         # NB: cvxopt.solvers.lp expects a 1d c vector
+        solvers.options['show_progress'] = verbose
         res = solvers.lp(matrix(c[0, :]), matrix(A_ub), matrix(b_ub))
 
         # Extract the true optimisation variables
