@@ -122,10 +122,8 @@ def llp_irl(sf, M, k, T, phi, *, N=1000, p=2.0, verbose=False):
 
                 # Compute and store the expectation difference for this initial
                 # state
-                test = expert_basis_expectations - \
+                VE_tensor[:, i-1, j] = expert_basis_expectations - \
                     ith_non_expert_basis_expectations
-
-                VE_tensor[:, i-1, j] = test
 
         return VE_tensor
 
