@@ -20,9 +20,6 @@ def run_episode(policy, *, continuous=False):
 
     if continuous:
         env = gym.make('MountainCarContinuous-v0')
-
-    # Shorten episode length
-    env._max_episode_steps = 200
     
     env.reset()
 
