@@ -12,7 +12,7 @@ from cvxopt import matrix, solvers
 
 
 def tlp_irl(zeta, T, S_bounds, A, phi, gamma, opt_pol, *, p=2.0, m=5000, H=30,
-        tol=1e-6, verbose=False):
+        tol=1e-6, verbose=False, on_iteration=None):
     """
     Implements trajectory-based Linear Programming IRL by Ng and Russell, 2000
     
@@ -37,6 +37,8 @@ def tlp_irl(zeta, T, S_bounds, A, phi, gamma, opt_pol, *, p=2.0, m=5000, H=30,
     @param H - The length at which to truncate trajectories
     @param tol - Float tolerance used to determine reward function convergence
     @param verbose - Print status information
+    @param on_iteration - Optional callback function f(alpha) to be called
+        after each LP iteration
 
     @return A vector of d 'alpha' coefficients for the basis functions phi(S)
         that allows rewards to be computed for a state via the inner product
@@ -280,6 +282,9 @@ def tlp_irl(zeta, T, S_bounds, A, phi, gamma, opt_pol, *, p=2.0, m=5000, H=30,
 
         if verbose: print("Done")
 
+        if on_iteration is not None:
+            on_iteration(alpha_new)
+
         # If alpha_i's have converged, break
         alpha_delta = np.linalg.norm(alpha - alpha_new)
         if verbose: print("Alpha delta: {}".format(alpha_delta))
@@ -406,6 +411,40 @@ if __name__ == "__main__":
         return pol
 
 
+    # Visualise reward function as we go
+    import matplotlib.pyplot as plt
+    
+
+    def visualise(alpha_vector):
+
+        print(alpha_vector)
+
+        # Compose reward function
+        R = lambda s: np.dot(alpha_vector, [phi[i](s) for i in range(len(phi))])[0]
+
+        # Show basis functions and reward function
+        x = np.linspace(env.unwrapped.min_position, env.unwrapped.max_position, 100)
+
+        for i in range(len(alpha_vector)):
+            plt.plot(
+                x,
+                list(map(lambda s: alpha_vector[i] * phi[i]([s, 0]), x)),
+                'r--'
+            )
+
+        y = np.array(list(map(lambda s: R([s, 0]), x)))
+        plt.plot(
+            x,
+            y,
+            'b'
+        )
+
+        plt.grid()
+        plt.title(r"Reward function $R(\pi^*)$")
+        plt.xlim([env.unwrapped.min_position, env.unwrapped.max_position])
+        plt.show()
+
+
     # Perform trajectory based IRL
     # NB: MountainCar is not stocahstic, so we only need to sample m=1
     # trajectory to estimate trajectory value
@@ -421,33 +460,7 @@ if __name__ == "__main__":
         0.9,
         opt_pol,
         m=1,
-        verbose=True
+        verbose=True,
+        on_iteration=visualise
     )
 
-    print(alpha_vector)
-
-    # Compose reward function
-    R = lambda s: np.dot(alpha_vector, [phi[i](s) for i in range(len(phi))])[0]
-
-    # Show basis functions and reward function
-    import matplotlib.pyplot as plt
-    x = np.linspace(env.unwrapped.min_position, env.unwrapped.max_position, 100)
-
-    for i in range(len(alpha_vector)):
-        plt.plot(
-            x,
-            list(map(lambda s: alpha_vector[i] * phi[i]([s, 0]), x)),
-            'r--'
-        )
-
-    y = np.array(list(map(lambda s: R([s, 0]), x)))
-    plt.plot(
-        x,
-        y,
-        'b'
-    )
-
-    plt.grid()
-    plt.title(r"Reward function $R(\pi^*)$")
-    plt.xlim([env.unwrapped.min_position, env.unwrapped.max_position])
-    plt.show()
